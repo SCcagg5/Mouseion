@@ -1,0 +1,92 @@
+version: "3"
+networks:
+   db-net:
+     internal: true
+   proxy:
+     driver: bridge
+
+
+services:
+    elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:7.6.0
+      container_name: elasticsearch
+      environment:
+        - cluster.name=docker-cluster
+        - bootstrap.memory_lock=false
+        - cluster.routing.allocation.disk.threshold_enabled=false
+        - discovery.type=single-node
+        - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      ulimits:
+        memlock:
+          soft: -1
+          hard: -1
+      volumes:
+        - ./db/elastic/data:/usr/share/elasticsearch/data
+      networks:
+        - db-net
+
+    micro-extract:
+      build: ./Micro-extract/
+      container_name: ocr
+      tty: true
+      stdin_open: true
+      expose:
+        - 8080
+      volumes:
+        - ./Micro-extract/files/:/home/root/files
+      networks:
+        - db-net
+        - proxy
+      environment:
+        VIRTUAL_HOST: apiocr.${DOMAIN}
+        VIRTUAL_PORT: 8080
+        LETSENCRYPT_HOST: api.${DOMAIN}
+        LETSENCRYPT_EMAIL: ${EMAIL}
+        API_PASS: password
+
+    kibana:
+     image: docker.elastic.co/kibana/kibana:7.6.0
+     container_name: kibana
+     volumes:
+       - ./admin/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+     networks:
+       - db-net
+       - proxy
+     environment:
+       VIRTUAL_HOST: kibana.${DOMAIN}
+       VIRTUAL_PORT: 5601
+       LETSENCRYPT_HOST: kibana.${DOMAIN}
+       LETSENCRYPT_EMAIL: ${EMAIL}
+
+    nginx:
+      image: jwilder/nginx-proxy:alpine
+      container_name: nginx
+      restart: always
+      labels:
+        com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: 'true'
+      ports:
+        - 80:80
+        - 443:443
+      volumes:
+        - ./proxy/logs/global:/var/log/nginx
+        - ./proxy/conf/proxy.conf:/etc/nginx/conf.d/proxy.conf:ro
+        - ./proxy/vhost:/etc/nginx/vhost.d
+        - ./proxy/passwd:/etc/nginx/htpasswd
+        - /srv/nginx/data/html:/usr/share/nginx/html
+        - /srv/nginx/data/certs:/etc/nginx/certs:ro
+        - /var/run/docker.sock:/tmp/docker.sock:ro
+      networks:
+        - proxy
+
+    letsencrypt:
+      image: jrcs/letsencrypt-nginx-proxy-companion
+      container_name: letsencrypt
+      volumes:
+        - ./proxy/vhost:/etc/nginx/vhost.d
+        - /srv/nginx/data/certs:/etc/nginx/certs:rw
+        - /srv/nginx/data/html:/usr/share/nginx/html
+        - /var/run/docker.sock:/var/run/docker.sock:ro
+      depends_on:
+        - nginx
+      networks:
+        - proxy
