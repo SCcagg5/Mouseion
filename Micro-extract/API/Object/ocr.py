@@ -42,3 +42,68 @@ class ocr:
             es.indices.create(index = 'documents')
             res = es.index(index='documents',body=input)
         return [True, {"input": input, "text": text}, None]
+
+    def search(word):
+        word = str(word)
+        query = {
+               "query":{
+                  "bool":{
+                     "must":[
+                        {
+                          "query_string" : {
+                              "query" : "/.*" + word +".*/",
+                              "default_field" : "text"
+                          }
+                        }
+                     ]
+                  }
+               },
+              "script_fields": {
+                 "match": {
+                   "script": {
+                     "lang": "painless",
+                     "source": """    short i =0;
+                                      String[] x = new String[100];
+                                      Pattern reg = /.{0,10}""" + word + """.{0,100}/im;
+                                      def m = reg.matcher(params._source.text);
+                                      while ( m.find() ) {
+                                         x[i] = m.group();
+                                         ++i;
+                                      }
+                                      String[] res = new String[i + 1];
+                                      res[0] = Integer.toString(i);
+                                      while(--i >= 0){
+                                        res[i + 1] = x[i];
+                                      }
+                                      return res;
+
+                                    """
+                   }
+                 },
+                "title": {
+                   "script": {
+                     "lang": "painless",
+                     "source": "return params._source.title"
+                   }
+                 }
+              },
+               "size":-1
+            }
+        es.indices.refresh(index="documents")
+        res = es.search(index="documents", body=query)
+        ret = []
+        for i in res["hits"]["hits"]:
+            data = {
+            "title" : i["fields"]["title"],
+            "match" : {
+                "data" : i["fields"]["match"][0][1:],
+                "length": int(i["fields"]["match"][0][0])
+                }
+            }
+            ret.append(data)
+        n = len(ret)
+        for i in range(n):
+            for j in range(0, n-i-1):
+                if ret[j]["match"]["length"] < ret[j+1]["match"]["length"] :
+                    ret[j], ret[j+1] = ret[j+1], ret[j]
+        return [True, {"matches": ret}, None]
