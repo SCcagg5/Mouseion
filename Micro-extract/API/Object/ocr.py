@@ -32,12 +32,12 @@ class ocr:
                     "operator" : "and",
                     "zero_terms_query": "all"
                   }}}}
-             es.indices.refresh(index="documents")
-             res = es.search(index="documents", body=query)
-             if str(res["hits"]["total"]["value"]) == "0":
-                 res = es.index(index='documents',body=input)
-             else:
-                 input = {"title": None, "text": None, "error": "file already in database"}
+            es.indices.refresh(index="documents")
+            res = es.search(index="documents", body=query)
+            if str(res["hits"]["total"]["value"]) == "0":
+                res = es.index(index='documents',body=input)
+            else:
+                input = {"title": None, "text": None, "error": "file already in database"}
         except:
             es.indices.create(index = 'documents')
             res = es.index(index='documents',body=input)

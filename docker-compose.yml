@@ -22,6 +22,7 @@ services:
           hard: -1
       volumes:
         - ./db/elastic/data:/usr/share/elasticsearch/data
+        - ./db/elastic/conf.yml:/usr/share/elasticsearch/config/elasticsearch.yml
       networks:
         - db-net
 
