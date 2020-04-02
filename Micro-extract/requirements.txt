@@ -3,3 +3,4 @@ pymysql
 requests
 pyjwt
 elasticsearch
+langdetect

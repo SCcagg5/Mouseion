@@ -1,14 +1,19 @@
 import pdftotext
 import requests
+import os
 from .elastic import es
+from langdetect import detect
 
 class ocr:
     def download(file):
         file = str(file)
         try:
-            url = 'https://nldocuments.s3-eu-west-1.amazonaws.com/FRANCE/' + file
+            url = 'https://nldocuments.s3-eu-west-1.amazonaws.com/' + file
             r = requests.get(url, stream=True)
 
+
+            file = file.split('/')
+            file = file[len(file) - 1]
             with open("./files/" + file, 'wb') as fd:
                 for chunk in r.iter_content(2000):
                     fd.write(chunk)
@@ -19,12 +24,17 @@ class ocr:
 
     def analyse(file):
         try:
+            url = 'https://nldocuments.s3-eu-west-1.amazonaws.com/' + file
+            file = file.split('/')
+            file = file[len(file) - 1]
             with open("./files/" + file , "rb") as f:
                 pdf = pdftotext.PDF(f)
             text =  "".join(pdf)
+            os.remove("./files/" + file)
+            lang = detect(text)
         except:
             return [False, "Invalid pdf file", 400]
-        input = {"title": file, "text": text}
+        input = {"title": file, "text": text, "url": url, "lang": lang}
         try:
             query = { "query": { "match": {
                   "title": {
