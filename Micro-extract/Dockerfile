@@ -14,4 +14,6 @@ RUN pip3 install -r requirements.txt
 
 COPY ./API/ ./API
 
+RUN mkdir files
+
 ENTRYPOINT python3 ./API/server.py

@@ -34,6 +34,14 @@ def analyse(cn, nextc):
     err = ocr.analyse(cn.pr["file"])
     return cn.call_next(nextc, err)
 
+def mutlifile(cn, nextc):
+    err = check.contain(cn.pr, ["files"])
+    if not err[0]:
+        return cn.toret.add_error(err[1], err[2])
+    cn.pr = err[1]
+    err = ocr.multiplefiles(cn.pr["files"])
+    return cn.call_next(nextc, err)
+
 def search(cn, nextc):
     err = check.contain(cn.pr, ["word"])
     if not err[0]:

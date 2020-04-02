@@ -11,8 +11,7 @@ weba =      str(os.getenv('API_WEBA', '*'))
 mod =       str(os.getenv('API_MOD', 'PROD'))
 secret =    str(os.getenv('API_SCRT', '!@ws4RT4ws212@#%'))
 password =  str(os.getenv('API_PASS', 'password'))
-db_user =   str(os.getenv('DB_USER', 'password'))
-db_pass =   str(os.getenv('DB_PASS', 'password'))
+BASE_URL = str(os.getenv('URL', ''))
 
 call = lambda x : callnext(request, response).call(x)
 

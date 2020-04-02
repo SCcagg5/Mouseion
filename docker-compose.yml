@@ -33,8 +33,6 @@ services:
       stdin_open: true
       expose:
         - 8080
-      volumes:
-        - ./Micro-extract/files/:/home/root/files
       networks:
         - db-net
         - proxy

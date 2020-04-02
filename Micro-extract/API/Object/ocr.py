@@ -4,11 +4,35 @@ import os
 from .elastic import es
 from langdetect import detect
 
+BASE_URL = str(os.getenv('URL', ''))
+
 class ocr:
+    def multiplefiles(files):
+        if not isinstance(files, list):
+            return [False, "Files should be a list", 400]
+        total = {}
+        for file in files:
+            file = str(file)
+            res = ocr.download(file)
+            if not res[0]:
+                add = {"succes": False, "error": res[1]}
+            else:
+                res = ocr.analyse(file)
+                if not res[0]:
+                    add = {"succes": False, "error": res[1]}
+                else:
+                    add = {"success": True, "data": res[1]}
+            total[file] = add
+        return [True, total, None]
+
+
     def download(file):
         file = str(file)
+        ext = file.split('.')
+        if ext[len(ext) - 1] != "pdf":
+            return [False, "Invalid pdf file", 400]
         try:
-            url = 'https://nldocuments.s3-eu-west-1.amazonaws.com/' + file
+            url = BASE_URL + file
             r = requests.get(url, stream=True)
 
 
@@ -24,7 +48,7 @@ class ocr:
 
     def analyse(file):
         try:
-            url = 'https://nldocuments.s3-eu-west-1.amazonaws.com/' + file
+            url = BASE_URL + file
             file = file.split('/')
             file = file[len(file) - 1]
             with open("./files/" + file , "rb") as f:
@@ -76,7 +100,7 @@ class ocr:
                                       String[] x = new String[100];
                                       Pattern reg = /.{0,10}""" + word + """.{0,100}/im;
                                       def m = reg.matcher(params._source.text);
-                                      while ( m.find() ) {
+                                      while ( m.find() && i < 100 ) {
                                          x[i] = m.group();
                                          ++i;
                                       }
@@ -95,7 +119,19 @@ class ocr:
                      "lang": "painless",
                      "source": "return params._source.title"
                    }
-                 }
+                 },
+                "lang": {
+                   "script": {
+                     "lang": "painless",
+                     "source": "return params._source.lang"
+                   }
+                 },
+                 "url": {
+                    "script": {
+                      "lang": "painless",
+                      "source": "return params._source.url"
+                    }
+                  }
               },
                "size":-1
             }
@@ -104,7 +140,9 @@ class ocr:
         ret = []
         for i in res["hits"]["hits"]:
             data = {
-            "title" : i["fields"]["title"],
+            "title" : i["fields"]["title"][0],
+            "url": i["fields"]["url"][0],
+            "lang": i["fields"]["lang"][0],
             "match" : {
                 "data" : i["fields"]["match"][0][1:],
                 "length": int(i["fields"]["match"][0][0])
