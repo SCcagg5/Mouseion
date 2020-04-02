@@ -93,6 +93,7 @@ class ocr:
 
     def search(word):
         word = str(word)
+        limit = 20
         query = {
                "query":{
                   "bool":{
@@ -110,22 +111,33 @@ class ocr:
                  "match": {
                    "script": {
                      "lang": "painless",
-                     "source": """    short i =0;
-                                      String[] x = new String[100];
-                                      Pattern reg = /.{0,10}""" + word + """.{0,100}/im;
+                     "source": """
+                                      short i = 0;
+                                      short i2 = 0;
+                                      short limit = """ + limit + """;
+                                      String[] x = new String[limit];
+                                      Pattern reg = /.{0,10}\s""" + word + """\s.{0,100}/im;
                                       def m = reg.matcher(params._source.text);
-                                      while ( m.find() && i < 100 ) {
+                                      while ( m.find() && i < limit ) {
                                          x[i] = m.group();
                                          ++i;
                                       }
+                                      if (i == 0) {
+                                        reg = /.{0,10}""" + word + """.{0,100}/im;
+                                        m = reg.matcher(params._source.text);
+                                        while ( m.find() && i2 < limit ) {
+                                           x[i2] = m.group();
+                                           ++i2;
+                                        }
+                                        i = i2;
+                                      }
                                       String[] res = new String[i + 1];
-                                      res[0] = Integer.toString(i);
-                                      while(--i >= 0){
+                                      res[0] = Integer.toString( i2 == 0 ? i : - limit + i);
+                                      while (--i >= 0) {
                                         res[i + 1] = x[i];
                                       }
                                       return res;
-
-                                    """
+                                """
                    }
                  },
                 "title": {
@@ -147,8 +159,8 @@ class ocr:
                     }
                   }
               },
-               "size":-1
-            }
+               "size": limit
+        }
         es.indices.refresh(index="documents")
         res = es.search(index="documents", body=query)
         ret = []
@@ -159,7 +171,7 @@ class ocr:
             "lang": i["fields"]["lang"][0],
             "match" : {
                 "data" : i["fields"]["match"][0][1:],
-                "length": int(i["fields"]["match"][0][0])
+                "score": int(i["fields"]["match"][0][0])
                 }
             }
             ret.append(data)
@@ -168,4 +180,6 @@ class ocr:
             for j in range(0, n-i-1):
                 if ret[j]["match"]["length"] < ret[j+1]["match"]["length"] :
                     ret[j], ret[j+1] = ret[j+1], ret[j]
+        for i in range(n):
+            ret[i]["match"]["length"] = ret[i]["match"]["length"] < 1 ? ret[i]["match"]["length"] : ret[i]["match"]["length"] + limit
         return [True, {"matches": ret}, None]
