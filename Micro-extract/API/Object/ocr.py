@@ -3,6 +3,7 @@ import requests
 import os
 from .elastic import es
 from langdetect import detect
+from urllib.parse import urlparse
 
 BASE_URL = str(os.getenv('URL', ''))
 
@@ -33,7 +34,7 @@ class ocr:
             return [False, "Invalid pdf file", 400]
         try:
             url = BASE_URL + file
-            r = requests.get(url, stream=True)
+            r = requests.get(urlparse(url).geturl(), stream=True)
 
 
             file = file.split('/')
@@ -47,6 +48,9 @@ class ocr:
 
 
     def analyse(file):
+        url = BASE_URL + file
+        file = file.split('/')
+        file = file[len(file) - 1]
         try:
             query = { "query": { "match": {
                   "title": {
@@ -56,14 +60,11 @@ class ocr:
                   }}}}
             es.indices.refresh(index="documents")
             res = es.search(index="documents", body=query)
-            if str(res["hits"]["total"]["value"]) == "0":
+            if str(res["hits"]["total"]["value"]) != "0":
                 return [False, "File already in database", 400]
         except:
             es.indices.create(index = 'documents')
         try:
-            url = BASE_URL + file
-            file = file.split('/')
-            file = file[len(file) - 1]
             with open("./files/" + file , "rb") as f:
                 pdf = pdftotext.PDF(f)
             text =  "".join(pdf)
