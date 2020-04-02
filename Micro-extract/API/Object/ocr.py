@@ -116,25 +116,27 @@ class ocr:
                                       short i2 = 0;
                                       short limit = """ + limit + """;
                                       String[] x = new String[limit];
+                                      String[] x2 = new String[limit];
                                       Pattern reg = /.{0,10}\s""" + word + """\s.{0,100}/im;
                                       def m = reg.matcher(params._source.text);
                                       while ( m.find() && i < limit ) {
                                          x[i] = m.group();
                                          ++i;
                                       }
-                                      if (i == 0) {
-                                        reg = /.{0,10}""" + word + """.{0,100}/im;
-                                        m = reg.matcher(params._source.text);
-                                        while ( m.find() && i2 < limit ) {
-                                           x[i2] = m.group();
-                                           ++i2;
-                                        }
-                                        i = i2;
+                                      reg = /.{0,10}""" + word + """.{0,100}/im;
+                                      m = reg.matcher(params._source.text);
+                                      while ( m.find() && i2 < limit ) {
+                                          x2[i2] = m.group();
+                                          ++i2;
                                       }
-                                      String[] res = new String[i + 1];
-                                      res[0] = Integer.toString( i2 == 0 ? i : - limit + i);
+                                      String[][] res = new String[2][i > i2 ? i + 1 : i2 + 1];
+                                      res[0][0] = Integer.toString(i);
                                       while (--i >= 0) {
-                                        res[i + 1] = x[i];
+                                        res[0][i + 1] = x[i];
+                                      }
+                                      res[1][0] = Integer.toString(i2);
+                                      while (--i2 >= 0) {
+                                        res[1][i2 + 1] = x2[i2];
                                       }
                                       return res;
                                 """
@@ -170,9 +172,16 @@ class ocr:
             "url": i["fields"]["url"][0],
             "lang": i["fields"]["lang"][0],
             "match" : {
-                "data" : i["fields"]["match"][0][1:],
-                "score": int(i["fields"]["match"][0][0])
-                }
+                "perfect": {
+                        "data" : i["fields"]["match"][0][0][1:],
+                        "length": int(i["fields"]["match"][0][0][0]),
+                    },
+                "fussy": {
+                        "data" : i["fields"]["match"][0][1][1:],
+                        "length": int(i["fields"]["match"][0][0][0]) * limit + int(i["fields"]["match"][0][1][0]),
+                    }
+                },
+            "score": int(i["fields"]["match"][0][1][0]) +
             }
             ret.append(data)
         n = len(ret)
