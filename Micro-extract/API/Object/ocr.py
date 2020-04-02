@@ -48,6 +48,19 @@ class ocr:
 
     def analyse(file):
         try:
+            query = { "query": { "match": {
+                  "title": {
+                    "query" : file,
+                    "operator" : "and",
+                    "zero_terms_query": "all"
+                  }}}}
+            es.indices.refresh(index="documents")
+            res = es.search(index="documents", body=query)
+            if str(res["hits"]["total"]["value"]) == "0":
+                return [False, "File already in database", 400]
+        except:
+            es.indices.create(index = 'documents')
+        try:
             url = BASE_URL + file
             file = file.split('/')
             file = file[len(file) - 1]
