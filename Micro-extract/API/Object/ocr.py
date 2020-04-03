@@ -111,10 +111,9 @@ class ocr:
                  "match": {
                    "script": {
                      "lang": "painless",
-                     "source": """
-                                      short i = 0;
+                     "source": """    short i = 0;
                                       short i2 = 0;
-                                      short limit = """ + limit + """;
+                                      short limit = """ + str(limit)  +""" ;
                                       String[] x = new String[limit];
                                       String[] x2 = new String[limit];
                                       Pattern reg = /.{0,10}\s""" + word + """\s.{0,100}/im;
@@ -138,8 +137,7 @@ class ocr:
                                       while (--i2 >= 0) {
                                         res[1][i2 + 1] = x2[i2];
                                       }
-                                      return res;
-                                """
+                                      return res;"""
                    }
                  },
                 "title": {
@@ -167,28 +165,28 @@ class ocr:
         res = es.search(index="documents", body=query)
         ret = []
         for i in res["hits"]["hits"]:
+            l1 = int(i["fields"]["match"][0][0][0])
+            l2 = int(i["fields"]["match"][0][1][0])
             data = {
             "title" : i["fields"]["title"][0],
             "url": i["fields"]["url"][0],
             "lang": i["fields"]["lang"][0],
             "match" : {
                 "perfect": {
-                        "data" : i["fields"]["match"][0][0][1:],
-                        "length": int(i["fields"]["match"][0][0][0]),
+                        "data" : i["fields"]["match"][0][0][1:l1],
+                        "length": l1,
                     },
                 "fussy": {
-                        "data" : i["fields"]["match"][0][1][1:],
-                        "length": int(i["fields"]["match"][0][0][0]) * limit + int(i["fields"]["match"][0][1][0]),
+                        "data" : i["fields"]["match"][0][1][1:l2],
+                        "length": l2,
                     }
                 },
-            "score": int(i["fields"]["match"][0][1][0]) +
+            "score": l1 * limit + l2
             }
             ret.append(data)
         n = len(ret)
         for i in range(n):
             for j in range(0, n-i-1):
-                if ret[j]["match"]["length"] < ret[j+1]["match"]["length"] :
+                if ret[j]["score"] < ret[j+1]["score"] :
                     ret[j], ret[j+1] = ret[j+1], ret[j]
-        for i in range(n):
-            ret[i]["match"]["length"] = ret[i]["match"]["length"] < 1 ? ret[i]["match"]["length"] : ret[i]["match"]["length"] + limit
         return [True, {"matches": ret}, None]
