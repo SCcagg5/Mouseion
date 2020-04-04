@@ -1,7 +1,7 @@
-version: "3"
+version: "2"
 networks:
    db-net:
-     internal: true
+     driver: bridge
    proxy:
      driver: bridge
 
@@ -31,15 +31,15 @@ services:
       container_name: ocr
       tty: true
       stdin_open: true
-      expose:
-        - 8080
+      ports:
+        - 8080:8080
       networks:
         - db-net
         - proxy
       environment:
         VIRTUAL_HOST: apiocr.${DOMAIN}
         VIRTUAL_PORT: 8080
-        LETSENCRYPT_HOST: api.${DOMAIN}
+        LETSENCRYPT_HOST: apiocr.${DOMAIN}
         LETSENCRYPT_EMAIL: ${EMAIL}
         API_PASS: password
 

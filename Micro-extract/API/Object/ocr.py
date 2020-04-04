@@ -101,9 +101,9 @@ class ocr:
             with open("./files/" + file , "rb") as f:
                 pdf = pdftotext.PDF(f)
             text =  "".join(pdf)
-            if len(text) > 100000:
-                return [False, "Text too long", 400]
             os.remove("./files/" + file)
+            if len(text) > 10000:
+                return [False, "Text too long", 400]
             lang = detect(text)
         except:
             return [False, "Invalid pdf file", 400]
