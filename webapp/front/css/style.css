@@ -203,12 +203,37 @@ h5:hover {
 }
 
 .fontimage {
-  width: 700px;
+    width: 0px;
     position: absolute;
-    bottom: 74px;
-    left: 3px;
-    transform: rotate(13deg);
+    bottom: 10px;
+    left: 15px;
 }
+
+@media(min-height:400px){
+  .fontimage {
+    width: 200px;
+  }
+}
+
+
+@media(min-height:600px){
+  .fontimage {
+    width: 400px;
+  }
+}
+
+@media(min-height:800px){
+  .fontimage {
+    width: 700px;
+  }
+}
+
+@media(min-height:1000px){
+  .fontimage {
+    width: 700px;
+  }
+}
+
 
 .res {
   font-family: 'Inconsolata', monospace;
