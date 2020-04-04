@@ -4,6 +4,7 @@ import os
 from .elastic import es
 from langdetect import detect
 from urllib.parse import urlparse
+import re
 
 BASE_URL = str(os.getenv('URL', ''))
 
@@ -26,19 +27,51 @@ class ocr:
             total[file] = add
         return [True, total, None]
 
+    def gettext(url):
+        text = ""
+        url = str(url)
+        try:
+            query = { "query": { "match": {
+                  "url": {
+                    "query" : url,
+                    "operator" : "and",
+                    "zero_terms_query": "all"
+                  }}}}
+            es.indices.refresh(index="documents")
+            res = es.search(index="documents", body=query)
+            if str(res["hits"]["total"]["value"]) == "0":
+                return [False, "No such file", 404]
+            else:
+                text = res["hits"]["hits"][0]["_source"]
+        except:
+            es.indices.create(index = 'documents')
+            return [False, "Internal Error", 500]
+        return [True, {"text": text}, None]
+
 
     def download(file):
         file = str(file)
         ext = file.split('.')
+        url = urlparse(BASE_URL + file).geturl()
+        file = file.split('/')
+        file = file[len(file) - 1]
         if ext[len(ext) - 1] != "pdf":
             return [False, "Invalid pdf file", 400]
         try:
-            url = BASE_URL + file
-            r = requests.get(urlparse(url).geturl(), stream=True)
-
-
-            file = file.split('/')
-            file = file[len(file) - 1]
+            query = { "query": { "match": {
+                  "url": {
+                    "query" : url,
+                    "operator" : "and",
+                    "zero_terms_query": "all"
+                  }}}}
+            es.indices.refresh(index="documents")
+            res = es.search(index="documents", body=query)
+            if str(res["hits"]["total"]["value"]) != "0":
+                return [False, "File already in database", 400]
+        except:
+            es.indices.create(index = 'documents')
+        try:
+            r = requests.get(url, stream=True)
             with open("./files/" + file, 'wb') as fd:
                 for chunk in r.iter_content(2000):
                     fd.write(chunk)
@@ -48,13 +81,13 @@ class ocr:
 
 
     def analyse(file):
-        url = BASE_URL + file
+        url = urlparse(BASE_URL + file).geturl()
         file = file.split('/')
         file = file[len(file) - 1]
         try:
             query = { "query": { "match": {
-                  "title": {
-                    "query" : file,
+                  "url": {
+                    "query" : url,
                     "operator" : "and",
                     "zero_terms_query": "all"
                   }}}}
@@ -93,18 +126,36 @@ class ocr:
 
     def search(word):
         word = str(word)
+        regex = word.replace(" ", "\\ ")
         limit = 20
         query = {
                "query":{
                   "bool":{
-                     "must":[
+                    "should": [
+                        {
+                          "match" : {
+                                  "text" : {
+                                       "query" : "\"" + word + "\"",
+                                       "operator" : "and",
+                                       "boost": 2
+                                       }
+                                    }
+                        },
                         {
                           "query_string" : {
-                              "query" : "/.*" + word +".*/",
-                              "default_field" : "text"
-                          }
+                                  "query" : "/.*" + regex +".*/",
+                                  "default_field" : "text"
+                                          }
+                        },
+                        {
+                          "match" : {
+                                  "text" : {
+                                       "query" : "\"" + word +"\"",
+                                       "operator" : "or"
+                                       }
+                                    }
                         }
-                     ]
+                      ]
                   }
                },
               "script_fields": {
@@ -113,16 +164,16 @@ class ocr:
                      "lang": "painless",
                      "source": """    short i = 0;
                                       short i2 = 0;
-                                      short limit = """ + str(limit)  +""" ;
+                                      short limit = """ + str(limit) + """ ;
                                       String[] x = new String[limit];
                                       String[] x2 = new String[limit];
-                                      Pattern reg = /.{0,10}\s""" + word + """\s.{0,100}/im;
+                                      Pattern reg = /.{0,10}\\b""" + regex + """\\b.{0,100}/im;
                                       def m = reg.matcher(params._source.text);
                                       while ( m.find() && i < limit ) {
                                          x[i] = m.group();
                                          ++i;
                                       }
-                                      reg = /.{0,10}""" + word + """.{0,100}/im;
+                                      reg = /.{0,10}(\\B""" + regex + """|""" + regex + """\\B|\\B""" + regex + """\\B).{0,100}/im;
                                       m = reg.matcher(params._source.text);
                                       while ( m.find() && i2 < limit ) {
                                           x2[i2] = m.group();
@@ -163,7 +214,8 @@ class ocr:
         }
         es.indices.refresh(index="documents")
         res = es.search(index="documents", body=query)
-        ret = []
+        mat = []
+        sup = []
         for i in res["hits"]["hits"]:
             l1 = int(i["fields"]["match"][0][0][0])
             l2 = int(i["fields"]["match"][0][1][0])
@@ -173,20 +225,32 @@ class ocr:
             "lang": i["fields"]["lang"][0],
             "match" : {
                 "perfect": {
-                        "data" : i["fields"]["match"][0][0][1:l1],
+                        "data" : i["fields"]["match"][0][0][1:l1 + 1],
                         "length": l1,
                     },
-                "fussy": {
-                        "data" : i["fields"]["match"][0][1][1:l2],
+                "fuzzy": {
+                        "data" : i["fields"]["match"][0][1][1:l2 + 1],
                         "length": l2,
                     }
                 },
             "score": l1 * limit + l2
             }
-            ret.append(data)
-        n = len(ret)
+            for i2 in range(data["match"]["perfect"]["length"]):
+                data["match"]["perfect"]["data"][i2] = re.sub(' +', ' ', data["match"]["perfect"]["data"][i2])
+            for i2 in range(data["match"]["fuzzy"]["length"]):
+                data["match"]["fuzzy"]["data"][i2] = re.sub(' +', ' ', data["match"]["fuzzy"]["data"][i2])
+            if data["match"]["fuzzy"]["length"] == 0 and data["match"]["perfect"]["length"] == 0:
+                del data["match"]
+                sup.append(data)
+            else:
+                if data["match"]["fuzzy"]["length"] == 0:
+                    del data["match"]["fuzzy"]
+                if data["match"]["perfect"]["length"] == 0:
+                    del data["match"]["perfect"]
+                mat.append(data)
+        n = len(mat)
         for i in range(n):
             for j in range(0, n-i-1):
-                if ret[j]["score"] < ret[j+1]["score"] :
-                    ret[j], ret[j+1] = ret[j+1], ret[j]
-        return [True, {"matches": ret}, None]
+                if mat[j]["score"] < mat[j+1]["score"] :
+                    mat[j], mat[j+1] = mat[j+1], mat[j]
+        return [True, {"matches": mat, "supposed": sup}, None]

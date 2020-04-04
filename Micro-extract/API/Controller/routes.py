@@ -6,5 +6,6 @@ def setuproute(app, call):
     @app.route('/ocr/',    	        ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, analyse])                   )
     @app.route('/multiocr/',    	['OPTIONS', 'POST'],        lambda x = None: call([myauth, mutlifile])                           )
     @app.route('/search/',    	    ['OPTIONS', 'POST'],        lambda x = None: call([myauth, search])                              )
+    @app.route('/text/',    	    ['OPTIONS', 'POST'],        lambda x = None: call([myauth, gettext])                             )
     def base():
         return

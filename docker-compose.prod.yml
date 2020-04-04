@@ -57,3 +57,30 @@ services:
        VIRTUAL_PORT: 5601
        LETSENCRYPT_HOST: kibana.${DOMAIN}
        LETSENCRYPT_EMAIL: ${EMAIL}
+
+    error:
+      image: nginx
+      container_name: error
+      restart: always
+      volumes:
+        - ./error/front:/usr/share/nginx/html:ro
+        - ./error/conf/error.conf:/etc/nginx/conf.d/default.conf:ro
+      networks:
+        - proxy
+
+    webapp:
+      image: nginx
+      container_name: webapp
+      restart: always
+      volumes:
+        - ./webapp/front:/usr/share/nginx/html:ro
+        - ./webapp/conf/webapp.conf:/etc/nginx/conf.d/default.conf:ro
+      links:
+        - error
+      networks:
+        - proxy
+      environment:
+        VIRTUAL_HOST: dashboard.${DOMAIN}
+        VIRTUAL_PORT: 80
+        LETSENCRYPT_HOST: dashboard.${DOMAIN}
+        LETSENCRYPT_EMAIL: ${EMAIL}
