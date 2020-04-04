@@ -71,16 +71,10 @@ class ocr:
         except:
             es.indices.create(index = 'documents')
         try:
-            size = 0
-            str = ""
             r = requests.get(url, stream=True)
-            for chunk in r.iter_content(2000):
-                str += chunk
-                size += len(chunk)
-                if size > 30000000:
-                    return [False, "File to large", 400]
             with open("./files/" + file, 'wb') as fd:
-                    fd.write(str)
+                for chunk in r.iter_content(2000):
+                    fd.write(chunk)
         except:
             return [False, "Invalid File name:" + file, 400]
         return [True, {}, None]
