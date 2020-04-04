@@ -101,6 +101,8 @@ class ocr:
             with open("./files/" + file , "rb") as f:
                 pdf = pdftotext.PDF(f)
             text =  "".join(pdf)
+            if len(text) > 100000:
+                return [False, "Text too long", 400]
             os.remove("./files/" + file)
             lang = detect(text)
         except:
@@ -116,7 +118,7 @@ class ocr:
             es.indices.refresh(index="documents")
             res = es.search(index="documents", body=query)
             if str(res["hits"]["total"]["value"]) == "0":
-                res = es.index(index='documents',body=input)
+                res = es.index(index='documents',body=input, request_timeout=30)
             else:
                 input = {"title": None, "text": None, "error": "file already in database"}
         except:
