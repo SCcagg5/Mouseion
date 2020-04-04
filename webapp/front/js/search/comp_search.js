@@ -133,7 +133,7 @@ template: `
               </pre>
             </div>
             <div :class="sear && !recu  ? 'appear' : 'disappear'">
-              <img  class="fontimage" src="./imgs/fill2.svg">
+              <img  class="fontimage" src="./imgs/fill.png">
             </div>
           </div>
          `
