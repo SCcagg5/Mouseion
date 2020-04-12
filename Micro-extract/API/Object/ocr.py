@@ -166,30 +166,52 @@ class ocr:
                      "lang": "painless",
                      "source": """    short i = 0;
                                       short i2 = 0;
+                                      short i3 = 0;
+                                      short i4 = 0;
                                       short limit = """ + str(limit) + """ ;
                                       String[] x = new String[limit];
                                       String[] x2 = new String[limit];
-                                      Pattern reg = /.{0,10}\\b""" + regex + """\\b.{0,100}/im;
-                                      def m = reg.matcher(params._source.text);
+                                      Pattern reg1 = /.{0,10}\\b""" + regex + """\\b.{0,100}/im;
+                                      Pattern reg2 = /.{0,10}(\\B""" + regex + """|""" + regex + """\\B|\\B""" + regex + """\\B).{0,100}/im;
+
+                                      def m = reg1.matcher(params._source.text);
                                       while ( m.find() && i < limit ) {
                                          x[i] = m.group();
                                          ++i;
                                       }
-                                      reg = /.{0,10}(\\B""" + regex + """|""" + regex + """\\B|\\B""" + regex + """\\B).{0,100}/im;
-                                      m = reg.matcher(params._source.text);
+
+                                      m = reg2.matcher(params._source.text);
                                       while ( m.find() && i2 < limit ) {
                                           x2[i2] = m.group();
                                           ++i2;
                                       }
-                                      String[][] res = new String[2][i > i2 ? i + 1 : i2 + 1];
+
+                                      m = reg1.matcher(params._source.title);
+                                      while ( m.find() && i3 < limit ) {
+                                         ++i3;
+                                      }
+
+                                      m = reg2.matcher(params._source.title);
+                                      while ( m.find() && i4 < limit ) {
+                                          ++i4;
+                                      }
+
+
+                                      String[][] res = new String[3][i > i2 ? i + 1 : i2 + 1];
+
                                       res[0][0] = Integer.toString(i);
                                       while (--i >= 0) {
                                         res[0][i + 1] = x[i];
                                       }
+
                                       res[1][0] = Integer.toString(i2);
                                       while (--i2 >= 0) {
                                         res[1][i2 + 1] = x2[i2];
                                       }
+
+                                      res[2][0] = Integer.toString(i3);
+                                      res[2][1] = Integer.toString(i4);
+
                                       return res;"""
                    }
                  },
@@ -221,6 +243,8 @@ class ocr:
         for i in res["hits"]["hits"]:
             l1 = int(i["fields"]["match"][0][0][0])
             l2 = int(i["fields"]["match"][0][1][0])
+            l3 = int(i["fields"]["match"][0][2][0])
+            l4 = int(i["fields"]["match"][0][2][1])
             data = {
             "title" : i["fields"]["title"][0],
             "url": i["fields"]["url"][0],
@@ -233,15 +257,16 @@ class ocr:
                 "fuzzy": {
                         "data" : i["fields"]["match"][0][1][1:l2 + 1],
                         "length": l2,
-                    }
+                    },
+                "title": l3 + l4
                 },
-            "score": l1 * limit + l2
+            "score": l1 * limit + l2 + l3 * limit * limit + l4 * limit
             }
             for i2 in range(data["match"]["perfect"]["length"]):
                 data["match"]["perfect"]["data"][i2] = re.sub(' +', ' ', data["match"]["perfect"]["data"][i2])
             for i2 in range(data["match"]["fuzzy"]["length"]):
                 data["match"]["fuzzy"]["data"][i2] = re.sub(' +', ' ', data["match"]["fuzzy"]["data"][i2])
-            if data["match"]["fuzzy"]["length"] == 0 and data["match"]["perfect"]["length"] == 0:
+            if data["match"]["fuzzy"]["length"] == 0 and data["match"]["perfect"]["length"] == 0 and data["match"]["title"] == 0:
                 del data["match"]
                 sup.append(data)
             else:
@@ -249,6 +274,8 @@ class ocr:
                     del data["match"]["fuzzy"]
                 if data["match"]["perfect"]["length"] == 0:
                     del data["match"]["perfect"]
+                if data["match"]["title"] == 0:
+                    del data["match"]["title"]
                 mat.append(data)
         n = len(mat)
         for i in range(n):
