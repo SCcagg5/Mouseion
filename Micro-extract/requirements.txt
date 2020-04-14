@@ -4,3 +4,4 @@ requests
 pyjwt
 elasticsearch
 langdetect
+unidecode

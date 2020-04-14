@@ -4,6 +4,7 @@ import os
 from .elastic import es
 from langdetect import detect
 from urllib.parse import urlparse
+import unidecode
 import re
 
 BASE_URL = str(os.getenv('URL', ''))
@@ -127,8 +128,8 @@ class ocr:
         return [True, {"input": input, "text": text}, None]
 
     def search(word):
-        word = str(word)
-        regex = word.replace(" ", "\\ ").replacce("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
+        word = unidecode.unidecode(str(word))
+        regex = word.replace(" ", "\\ ").replace("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
         limit = 20
         query = {
                "query":{
@@ -282,4 +283,4 @@ class ocr:
             for j in range(0, n-i-1):
                 if mat[j]["score"] < mat[j+1]["score"] :
                     mat[j], mat[j+1] = mat[j+1], mat[j]
-        return [True, {"matches": mat, "supposed": sup}, None]
+        return [True, {"matches": mat, "supposed": sup, "query": query}, None]
