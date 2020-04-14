@@ -128,7 +128,7 @@ class ocr:
 
     def search(word):
         word = str(word)
-        regex = word.replace(" ", "\\ ")
+        regex = word.replace(" ", "\\ ").replacce("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
         limit = 20
         query = {
                "query":{
