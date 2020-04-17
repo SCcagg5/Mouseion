@@ -198,7 +198,7 @@ class ocr:
                                       }
 
 
-                                      String[][] res = new String[3][i > i2 ? i + 1 : i2 + 1];
+                                      String[][] res = new String[3][i > i2 ? i + 2 : i2 + 2];
 
                                       res[0][0] = Integer.toString(i);
                                       while (--i >= 0) {
