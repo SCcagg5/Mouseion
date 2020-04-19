@@ -27,11 +27,25 @@ def download(cn, nextc):
     return cn.call_next(nextc, err)
 
 def analyse(cn, nextc):
-    err = check.contain(cn.pr, ["file"])
+    if not check.contain(cn.private, ["name", "url"])[0]:
+        err = check.contain(cn.pr, ["file"])
+        if not err[0]:
+            return cn.toret.add_error(err[1], err[2])
+        cn.pr = err[1]
+    cn.pr = check.setnoneopt(cn.pr, ["file", "title", "lang", "restriction", "save"])
+    cn.private = check.setnoneopt(cn.private, ["name", "url"])
+    err = ocr.analyse(cn.pr["file"], cn.pr["title"], cn.pr["lang"], cn.pr["restriction"], cn.pr["save"], cn.private["url"], cn.private["name"])
+    return cn.call_next(nextc, err)
+
+def fromb64(cn, nextc):
+    err = check.contain(cn.pr, ["base64"])
     if not err[0]:
         return cn.toret.add_error(err[1], err[2])
     cn.pr = err[1]
-    err = ocr.analyse(cn.pr["file"])
+    err = ocr.frombase64(cn.pr["base64"])
+    if err[0]:
+        cn.private["name"] = err[1]["name"]
+        cn.private["url"] = err[1]["url"]
     return cn.call_next(nextc, err)
 
 def mutlifile(cn, nextc):

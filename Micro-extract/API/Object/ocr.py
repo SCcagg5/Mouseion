@@ -4,10 +4,61 @@ import os
 from .elastic import es
 from langdetect import detect
 from urllib.parse import urlparse
+from pdfrw import PdfReader
 import unidecode
 import re
+import base64
+import hashlib
 
 BASE_URL = str(os.getenv('URL', ''))
+class pdf:
+    def get_title(path, file, title = None):
+        if title is None:
+            title = PdfReader("./files/" + file).Info.Title
+            title = title.strip('()') if title else None
+        return [True, {"title": title if title else file.split(".pdf")[0]} , None]
+
+    def get_text(path, file, limit = None):
+        try:
+            with open(path + file , "rb") as f:
+                p = pdftotext.PDF(f)
+            text =  "".join(p)
+            if limit:
+                if len(text) > limit:
+                    return [False, "Text too long", 400]
+            content = base64.encodestring(open(path + file , "rb").read()).decode("utf-8").replace("\n", "")
+        except:
+            return [False, "Invalid pdf", 400]
+        return [True, {"text": text, "content": content}, None]
+
+    def get_lang(text, lang = None):
+        return [True, {"lang" : lang if lang else detect(text)}, None]
+
+    def get_restriction(restriction):
+        ret = []
+        if restriction is None:
+            restriction = []
+        for i in restriction:
+            ret.append(str(hashlib.sha224(str(restriction).encode()).hexdigest()))
+        if len(ret) == 0:
+            ret.append(str(hashlib.sha224("public".encode()).hexdigest()))
+        return [True, {"restriction": ret}, None]
+
+    def exist(url):
+        try:
+            query = { "query": { "match": {
+                  "url": {
+                    "query" : url,
+                    "operator" : "and",
+                    "zero_terms_query": "all"
+                  }}}}
+            es.indices.refresh(index="documents")
+            res = es.search(index="documents", body=query)
+            if str(res["hits"]["total"]["value"]) != "0":
+                return True
+        except:
+            es.indices.create(index='documents')
+        return False
 
 class ocr:
     def multiplefiles(files):
@@ -15,18 +66,82 @@ class ocr:
             return [False, "Files should be a list", 400]
         total = {}
         for file in files:
-            file = str(file)
-            res = ocr.download(file)
+            if not isinstance(file, list):
+                return [False, "Files should be a list of objects", 400]
+            res = ocr.download( str(file["file"]))
             if not res[0]:
                 add = {"succes": False, "error": res[1]}
             else:
-                res = ocr.analyse(file)
+                res = ocr.analyse(str(file["file"]),
+                                 str(file["title"]) if "title" in file else None,
+                                 str(file["lang"]) if "lang" in file else None,
+                                 str(file["restriction"]) if "restriction" in file else None
+                                 )
                 if not res[0]:
                     add = {"succes": False, "error": res[1]}
                 else:
                     add = {"success": True, "data": res[1]}
-            total[file] = add
+            total[str(file["file"])] = add
         return [True, total, None]
+
+
+    def download(file):
+        file = str(file)
+        ext = file.split('.')
+        url = urlparse(BASE_URL + file).geturl()
+        file = file.split('/')
+        file = file[len(file) - 1]
+        if ext[len(ext) - 1] != "pdf":
+            return [False, "Invalid pdf file", 400]
+        if pdf.exist(url):
+            return [False, "File already in database", 400]
+        try:
+            r = requests.get(url, stream=True)
+            with open("./files/" + file, 'wb') as fd:
+                for chunk in r.iter_content(2000):
+                    fd.write(chunk)
+        except:
+            return [False, "Invalid File name:" + file, 400]
+        return [True, {}, None]
+
+    def frombase64(b64):
+        b64 = str(b64)
+        name = b64[:10] + ".pdf"
+        bytes = base64.b64decode(b64)
+        url = name
+        f = open('./files/' + name , 'wb')
+        f.write(bytes)
+        f.close()
+        if pdf.exist(url):
+            return [False, "File already in database", 400]
+        return [True, {"url": url, "name": name}, None]
+
+    def analyse(file, title, lang, restriction, save, url, name):
+        if restriction and not isinstance(restriction, list):
+            return [False, "Restriction should be a list", 400]
+        url = url if url else urlparse(BASE_URL + file).geturl()
+        if name:
+            file = name
+        else:
+            file = file.split('/')
+            file = file[len(file) - 1]
+        if pdf.exist(url):
+            return [False, "File already in database", 400]
+        title = pdf.get_title("./files/", file, title)[1]["title"]
+        text = pdf.get_text("./files/", file)
+        if not text[0]:
+            return text
+        content = text[1]["content"] if save else ""
+        text = text[1]["text"]
+        lang = pdf.get_lang(text, lang)[1]["lang"]
+        restriction = pdf.get_restriction(restriction)[1]["restriction"]
+        input = {"title": title, "text": text, "base64": content, "url": url, "lang": lang, "restriction": restriction}
+        try:
+            res = es.index(index='documents',body=input, request_timeout=30)
+        except:
+            es.indices.create(index = 'documents')
+            res = es.index(index='documents',body=input)
+        return [True, {"input": input}, None]
 
     def gettext(url):
         text = ""
@@ -48,84 +163,6 @@ class ocr:
             es.indices.create(index = 'documents')
             return [False, "Internal Error", 500]
         return [True, {"text": text}, None]
-
-
-    def download(file):
-        file = str(file)
-        ext = file.split('.')
-        url = urlparse(BASE_URL + file).geturl()
-        file = file.split('/')
-        file = file[len(file) - 1]
-        if ext[len(ext) - 1] != "pdf":
-            return [False, "Invalid pdf file", 400]
-        try:
-            query = { "query": { "match": {
-                  "url": {
-                    "query" : url,
-                    "operator" : "and",
-                    "zero_terms_query": "all"
-                  }}}}
-            es.indices.refresh(index="documents")
-            res = es.search(index="documents", body=query)
-            if str(res["hits"]["total"]["value"]) != "0":
-                return [False, "File already in database", 400]
-        except:
-            es.indices.create(index = 'documents')
-        try:
-            r = requests.get(url, stream=True)
-            with open("./files/" + file, 'wb') as fd:
-                for chunk in r.iter_content(2000):
-                    fd.write(chunk)
-        except:
-            return [False, "Invalid File name:" + file, 400]
-        return [True, {}, None]
-
-
-    def analyse(file):
-        url = urlparse(BASE_URL + file).geturl()
-        file = file.split('/')
-        file = file[len(file) - 1]
-        try:
-            query = { "query": { "match": {
-                  "url": {
-                    "query" : url,
-                    "operator" : "and",
-                    "zero_terms_query": "all"
-                  }}}}
-            es.indices.refresh(index="documents")
-            res = es.search(index="documents", body=query)
-            if str(res["hits"]["total"]["value"]) != "0":
-                return [False, "File already in database", 400]
-        except:
-            es.indices.create(index = 'documents')
-        try:
-            with open("./files/" + file , "rb") as f:
-                pdf = pdftotext.PDF(f)
-            text =  "".join(pdf)
-            os.remove("./files/" + file)
-            if len(text) > 10000:
-                return [False, "Text too long", 400]
-            lang = detect(text)
-        except:
-            return [False, "Invalid pdf file", 400]
-        input = {"title": file, "text": text, "url": url, "lang": lang}
-        try:
-            query = { "query": { "match": {
-                  "title": {
-                    "query" : file,
-                    "operator" : "and",
-                    "zero_terms_query": "all"
-                  }}}}
-            es.indices.refresh(index="documents")
-            res = es.search(index="documents", body=query)
-            if str(res["hits"]["total"]["value"]) == "0":
-                res = es.index(index='documents',body=input, request_timeout=30)
-            else:
-                input = {"title": None, "text": None, "error": "file already in database"}
-        except:
-            es.indices.create(index = 'documents')
-            res = es.index(index='documents',body=input)
-        return [True, {"input": input, "text": text}, None]
 
     def search(word):
         word = unidecode.unidecode(str(word))

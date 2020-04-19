@@ -5,3 +5,4 @@ pyjwt
 elasticsearch
 langdetect
 unidecode
+pdfrw
