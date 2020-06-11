@@ -32,9 +32,9 @@ def analyse(cn, nextc):
         if not err[0]:
             return cn.toret.add_error(err[1], err[2])
         cn.pr = err[1]
-    cn.pr = check.setnoneopt(cn.pr, ["file", "title", "lang", "restriction", "save"])
+    cn.pr = check.setnoneopt(cn.pr, ["file", "title", "lang", "restriction", "save", "folder"])
     cn.private = check.setnoneopt(cn.private, ["name", "url"])
-    err = ocr.analyse(cn.pr["file"], cn.pr["title"], cn.pr["lang"], cn.pr["restriction"], cn.pr["save"], cn.private["url"], cn.private["name"])
+    err = ocr.analyse(cn.pr["file"], cn.pr["title"], cn.pr["lang"], cn.pr["restriction"], cn.pr["save"], cn.private["url"], cn.private["name"], cn.pr["folder"])
     return cn.call_next(nextc, err)
 
 def fromb64(cn, nextc):
@@ -57,11 +57,11 @@ def mutlifile(cn, nextc):
     return cn.call_next(nextc, err)
 
 def search(cn, nextc):
-    err = check.contain(cn.pr, ["word"])
+    err = check.contain(cn.pr, ["word", "lang"])
     if not err[0]:
         return cn.toret.add_error(err[1], err[2])
     cn.pr = err[1]
-    err = ocr.search(cn.pr["word"])
+    err = ocr.search(cn.pr["word"], cn.pr["lang"])
     return cn.call_next(nextc, err)
 
 def gettext(cn, nextc):

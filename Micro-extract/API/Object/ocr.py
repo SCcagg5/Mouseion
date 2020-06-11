@@ -91,8 +91,8 @@ class ocr:
         url = urlparse(BASE_URL + file).geturl()
         file = file.split('/')
         file = file[len(file) - 1]
-        if ext[len(ext) - 1] != "pdf":
-            return [False, "Invalid pdf file", 400]
+        #if ext[len(ext) - 1] != "pdf":
+        #    return [False, "Invalid pdf file", 400]
         if pdf.exist(url):
             return [False, "File already in database", 400]
         try:
@@ -116,7 +116,7 @@ class ocr:
             return [False, "File already in database", 400]
         return [True, {"url": url, "name": name}, None]
 
-    def analyse(file, title, lang, restriction, save, url, name):
+    def analyse(file, title, lang, restriction, save, url, name, folder):
         if restriction and not isinstance(restriction, list):
             return [False, "Restriction should be a list", 400]
         url = url if url else urlparse(BASE_URL + file).geturl()
@@ -129,13 +129,16 @@ class ocr:
             return [False, "File already in database", 400]
         title = pdf.get_title("./files/", file, title)[1]["title"]
         text = pdf.get_text("./files/", file)
-        if not text[0]:
-            return text
-        content = text[1]["content"] if save else ""
-        text = text[1]["text"]
-        lang = pdf.get_lang(text, lang)[1]["lang"]
+        if text[0]:
+                content = text[1]["content"] if save else ""
+                text = text[1]["text"]
+                lang = pdf.get_lang(text, lang)[1]["lang"]
+        else:
+                content = ""
+                text = ""
+                lang = ""
         restriction = pdf.get_restriction(restriction)[1]["restriction"]
-        input = {"title": title, "text": text, "base64": content, "url": url, "lang": lang, "restriction": restriction}
+        input = {"title": title, "text": text, "base64": content, "folder": folder if folder else " ", "url": url, "lang": lang, "restriction": restriction}
         try:
             res = es.index(index='documents',body=input, request_timeout=30)
         except:
@@ -164,13 +167,14 @@ class ocr:
             return [False, "Internal Error", 500]
         return [True, {"text": text}, None]
 
-    def search(word):
+    def search(word, lang):
         word = unidecode.unidecode(str(word))
         regex = word.replace(" ", "\\ ").replace("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
         limit = 20
         query = {
                "query":{
                   "bool":{
+		    "must": [ { "bool": {
                     "should": [
                         {
                           "match" : {
@@ -187,6 +191,14 @@ class ocr:
                                   "default_field" : "text"
                                           }
                         },
+			{
+                          "match" : {
+                                  "title" : {
+                                       "query" : "\"" + word +"\"",
+                                       "operator" : "or"
+                                       }
+                                    }
+                        },
                         {
                           "match" : {
                                   "text" : {
@@ -195,7 +207,16 @@ class ocr:
                                        }
                                     }
                         }
-                      ]
+                      ] }}, { "bool": {
+		    "must": [
+                        {
+                          "match" : {
+                                  "lang" : {
+                                       "query" : lang
+                                    }
+                          }
+                        }
+                    ] }} ]
                   }
                },
               "script_fields": {
