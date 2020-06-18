@@ -178,12 +178,23 @@ class check:
             pass
         return res
 
+    def route_json(request):
+        res = {}
+        dat = request.path[1:].split('/')
+        i = 0
+        while i < len(dat) - 1:
+            res[str(dat[i])] = str(dat[i + 1])
+            i += 1
+        return res
+
 
 class callnext:
     def __init__(self, req, resp = None, err = None, anonlvl = None):
         self.pr = check.json(req)
         self.ck = check.cookies_json(req)
         self.hd = check.head_json(req, self.ck)
+        self.rt = check.route_json(req)
+        self.get = dict(req.query.decode())
         self.private = {}
         self.cookie = {}
         self.toret = ret(req.path, self.pr, self.hd, self.ck, anonlvl)

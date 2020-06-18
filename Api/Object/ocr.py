@@ -9,6 +9,8 @@ import unidecode
 import re
 import base64
 import hashlib
+from PIL import Image
+from pytesseract import image_to_string
 
 BASE_URL = str(os.getenv('URL', ''))
 class pdf:
@@ -34,17 +36,20 @@ class pdf:
     def get_lang(text, lang = None):
         return [True, {"lang" : lang if lang else detect(text)}, None]
 
-    def get_restriction(restriction):
+    def get_restriction(restriction, public = False):
         ret = []
         if restriction is None:
-            restriction = []
+            restriction = ["public"]
+        elif public is True:
+            restriction.append("public")
         for i in restriction:
-            ret.append(str(hashlib.sha224(str(restriction).encode()).hexdigest()))
-        if len(ret) == 0:
-            ret.append(str(hashlib.sha224("public".encode()).hexdigest()))
+            if i == "public":
+                ret.append([0, str(hashlib.sha224("public".encode()).hexdigest())])
+            else:
+                ret.append([1, str(hashlib.sha224(str(i).encode()).hexdigest())])
         return [True, {"restriction": ret}, None]
 
-    def exist(url):
+    def exist(url, date = None):
         try:
             query = { "query": { "match": {
                   "url": {
@@ -55,7 +60,10 @@ class pdf:
             es.indices.refresh(index="documents")
             res = es.search(index="documents", body=query)
             if str(res["hits"]["total"]["value"]) != "0":
-                return True
+                if date is None:
+                    return True
+                elif "date" in res["hits"]["hits"][0]["_source"] :
+                   return True if date == res["hits"]["hits"][0]["_source"]["date"] else False
         except:
             es.indices.create(index='documents')
         return False
@@ -75,7 +83,12 @@ class ocr:
                 res = ocr.analyse(str(file["file"]),
                                  str(file["title"]) if "title" in file else None,
                                  str(file["lang"]) if "lang" in file else None,
-                                 str(file["restriction"]) if "restriction" in file else None
+                                 str(file["restriction"]) if "restriction" in file else None,
+                                 str(file["save"]) if "save" in file else None,
+                                 None,
+                                 None,
+                                 str(file["folder"]) if "folder" in file else None,
+                                 str(res[1]["date"])
                                  )
                 if not res[0]:
                     add = {"succes": False, "error": res[1]}
@@ -90,23 +103,27 @@ class ocr:
         ext = file.split('.')
         url = urlparse(BASE_URL + file).geturl()
         file = file.split('/')
-        file = file[len(file) - 1]
-        #if ext[len(ext) - 1] != "pdf":
-        #    return [False, "Invalid pdf file", 400]
-        if pdf.exist(url):
-            return [False, "File already in database", 400]
+        file = file[len(file) - 1].split('#')[0].split('?')[0]
         try:
             r = requests.get(url, stream=True)
+            if "Last-Modified" in r.headers:
+                date = r.headers["Last-Modified"]
+                if pdf.exist(url, date):
+                    return [False, "File in this version already in database", 400]
+            else:
+                date = None
+                if pdf.exist(url):
+                    return [False, "File already in database", 400]
             with open("./files/" + file, 'wb') as fd:
                 for chunk in r.iter_content(2000):
                     fd.write(chunk)
         except:
             return [False, "Invalid File name:" + file, 400]
-        return [True, {}, None]
+        return [True, {"date": date}, None]
 
-    def frombase64(b64):
+    def frombase64(b64, type):
         b64 = str(b64)
-        name = b64[:10] + ".pdf"
+        name = b64[:10] + "." + type
         bytes = base64.b64decode(b64)
         url = name
         f = open('./files/' + name , 'wb')
@@ -116,7 +133,9 @@ class ocr:
             return [False, "File already in database", 400]
         return [True, {"url": url, "name": name}, None]
 
-    def analyse(file, title, lang, restriction, save, url, name, folder):
+
+
+    def pdf_analyse(file, title, lang, restriction, save, url, name, folder, date):
         if restriction and not isinstance(restriction, list):
             return [False, "Restriction should be a list", 400]
         url = url if url else urlparse(BASE_URL + file).geturl()
@@ -124,29 +143,91 @@ class ocr:
             file = name
         else:
             file = file.split('/')
-            file = file[len(file) - 1]
-        if pdf.exist(url):
+            file = file[len(file) - 1].split('#')[0].split('?')[0]
+        if pdf.exist(url, date):
             return [False, "File already in database", 400]
-        title = pdf.get_title("./files/", file, title)[1]["title"]
+
+        input = {"type": "pdf", "url": url}
+
+        input["title"] = pdf.get_title("./files/", file, title)[1]["title"]
+        input["restriction"] = str(pdf.get_restriction(restriction)[1]["restriction"])
+        if folder:
+            input["folder"] = folder
+        if date:
+            input["date"] = date
         text = pdf.get_text("./files/", file)
         if text[0]:
-                content = text[1]["content"] if save else ""
-                text = text[1]["text"]
-                lang = pdf.get_lang(text, lang)[1]["lang"]
-        else:
-                content = ""
-                text = ""
-                lang = ""
-        restriction = pdf.get_restriction(restriction)[1]["restriction"]
-        input = {"title": title, "text": text, "base64": content, "folder": folder if folder else " ", "url": url, "lang": lang, "restriction": restriction}
+             if save:
+                input["content"] = text[1]["content"]
+             input["text"] = text[1]["text"]
+             input["lang"] = pdf.get_lang(input["text"], lang)[1]["lang"]
         try:
-            res = es.index(index='documents',body=input, request_timeout=30)
+            res = es.index(index='documents', body=input, request_timeout=30)
         except:
             es.indices.create(index = 'documents')
-            res = es.index(index='documents',body=input)
+            res = es.index(index='documents', body=input, request_timeout=30)
         return [True, {"input": input}, None]
 
-    def gettext(url):
+    def img_analyse(file, title, lang, restriction, save, url, name, folder, date):
+        if restriction and not isinstance(restriction, list):
+            return [False, "Restriction should be a list", 400]
+        url = url if url else urlparse(BASE_URL + file).geturl()
+        if name:
+            file = name
+        else:
+            file = file.split('/')
+            file = file[len(file) - 1].split('#')[0].split('?')[0]
+        if pdf.exist(url, date):
+            return [False, "File already in database", 400]
+
+        input = {"type": "img", "url": url}
+
+        input["title"] = title
+        input["restriction"] = str(pdf.get_restriction(restriction)[1]["restriction"])
+        if folder:
+            input["folder"] = folder
+        if date:
+            input["date"] = date
+        text = image_to_string(Image.open("./files/" + file))
+        if text:
+             input["text"] = text
+             input["lang"] = pdf.get_lang(text, lang)[1]["lang"]
+        try:
+            res = es.index(index='documents', body=input, request_timeout=30)
+        except:
+            es.indices.create(index = 'documents')
+            res = es.index(index='documents', body=input, request_timeout=30)
+        return [True, {"input": input}, None]
+
+    def file_analyse(file, title, lang, restriction, save, url, name, folder, date):
+        if restriction and not isinstance(restriction, list):
+            return [False, "Restriction should be a list", 400]
+        url = url if url else urlparse(BASE_URL + file).geturl()
+        if name:
+            file = name
+        else:
+            file = file.split('/')
+            file = file[len(file) - 1].split('#')[0].split('?')[0]
+        if pdf.exist(url, date):
+            return [False, "File already in database", 400]
+
+        input = {"type": "file", "url": url}
+
+        input["title"] = title
+        input["restriction"] = str(pdf.get_restriction(restriction)[1]["restriction"])
+        if folder:
+            input["folder"] = folder
+        if date:
+            input["date"] = date
+        input["lang"] = pdf.get_lang("", lang)[1]["lang"]
+        try:
+            res = es.index(index='documents', body=input, request_timeout=30)
+        except:
+            es.indices.create(index = 'documents')
+            res = es.index(index='documents', body=input, request_timeout=30)
+        return [True, {"input": input}, None]
+
+    def gettext(url, date):
         text = ""
         url = str(url)
         try:
