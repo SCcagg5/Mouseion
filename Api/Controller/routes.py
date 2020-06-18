@@ -14,7 +14,7 @@ def setuproute(app, call):
 
 
     @app.route('/search/',    	        ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
-    @app.route('/search/<>',    	    ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
+    @app.route('/search/<>/',    	    ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
     @app.route('/text/',    	        ['OPTIONS', 'POST'],        lambda x = None: call([myauth, gettext])                             )
     def base():
         return
