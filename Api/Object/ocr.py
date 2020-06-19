@@ -160,7 +160,7 @@ class ocr:
              if save:
                 input["content"] = text[1]["content"]
              input["text"] = text[1]["text"]
-             input["lang"] = pdf.get_lang(input["text"], lang)[1]["lang"]
+        input["lang"] = pdf.get_lang(input["text"] if 'text' in input else None, lang)[1]["lang"]
         try:
             res = es.index(index='documents', body=input, request_timeout=30)
         except:
@@ -191,7 +191,7 @@ class ocr:
         text = image_to_string(Image.open("./files/" + file))
         if text:
              input["text"] = text
-             input["lang"] = pdf.get_lang(text, lang)[1]["lang"]
+        input["lang"] = pdf.get_lang(str(text), lang)[1]["lang"]
         try:
             res = es.index(index='documents', body=input, request_timeout=30)
         except:
