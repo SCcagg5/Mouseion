@@ -13,8 +13,8 @@ def setuproute(app, call):
     @app.route('/file/add/from_url',    ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, file_analyse])              )
 
 
-    @app.route('/search/',    	        ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
-    @app.route('/search/<>/',    	    ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
+    @app.route('/search',    	        ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
+    @app.route('/search/<>',    	    ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
     @app.route('/text/',    	        ['OPTIONS', 'POST'],        lambda x = None: call([myauth, gettext])                             )
     def base():
         return

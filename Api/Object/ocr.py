@@ -11,6 +11,7 @@ import base64
 import hashlib
 from PIL import Image
 from pytesseract import image_to_string
+import string
 
 BASE_URL = str(os.getenv('URL', ''))
 class pdf:
@@ -31,7 +32,20 @@ class pdf:
             content = base64.encodestring(open(path + file , "rb").read()).decode("utf-8").replace("\n", "")
         except:
             return [False, "Invalid pdf", 400]
-        return [True, {"text": text, "content": content}, None]
+        l = text
+        chara = ",'’&/-●"
+        for k in chara:
+            l = l.replace(k, ' ')
+        l = [w for w in l.strip(string.punctuation).split() if len(w)>1]
+        map = {"lexiq": ' '.join(list(dict.fromkeys(l))), "count": {}}
+        n = 0
+        while n < len(l):
+            if str(l[n]) not in map["count"]:
+                map["count"][str(l[n])] = 1
+            else:
+                map["count"][str(l[n])] += 1
+            n += 1
+        return [True, {"text": text, "content": content, "map": map}, None]
 
     def get_lang(text, lang = None):
         return [True, {"lang" : lang if lang else detect(text)}, None]
@@ -160,6 +174,7 @@ class ocr:
              if save:
                 input["content"] = text[1]["content"]
              input["text"] = text[1]["text"]
+             input["map"] = text[1]["map"]
         input["lang"] = pdf.get_lang(input["text"] if 'text' in input else None, lang)[1]["lang"]
         try:
             res = es.index(index='documents', body=input, request_timeout=30)
@@ -248,178 +263,112 @@ class ocr:
             return [False, "Internal Error", 500]
         return [True, {"text": text}, None]
 
-    def search(word, lang):
-        word = unidecode.unidecode(str(word))
+    def search(word, lang, type, date_from, date_to, full = None):
+        word = unidecode.unidecode(str(word)) if word else ""
         regex = word.replace(" ", "\\ ").replace("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
         limit = 20
         query = {
-               "query":{
-                  "bool":{
-		    "must": [ { "bool": {
-                    "should": [
+          "size": 50,
+          "_source":["type", "url", "title", "lang"],
+          "query": {
+            "function_score": {
+                "query": {
+                     "bool": {
+                      "should": [
                         {
-                          "match" : {
-                                  "text" : {
-                                       "query" : "\"" + word + "\"",
-                                       "operator" : "and",
-                                       "boost": 2
-                                       }
-                                    }
-                        },
-                        {
-                          "query_string" : {
-                                  "query" : "/.*" + regex +".*/",
-                                  "default_field" : "text"
-                                          }
-                        },
-			{
-                          "match" : {
-                                  "title" : {
-                                       "query" : "\"" + word +"\"",
-                                       "operator" : "or"
-                                       }
-                                    }
-                        },
-                        {
-                          "match" : {
-                                  "text" : {
-                                       "query" : "\"" + word +"\"",
-                                       "operator" : "or"
-                                       }
-                                    }
-                        }
-                      ] }}, { "bool": {
-		    "must": [
-                        {
-                          "match" : {
-                                  "lang" : {
-                                       "query" : lang
-                                    }
+                          "multi_match" : {
+                            "query":      word,
+                            "fields":     ["url", "title", "text"],
+                            "type":       "bool_prefix",
+                            "boost": 1,
+                            "operator": "OR",
+                            "slop": 0,
+                            "prefix_length": 0,
+                            "max_expansions": 50,
+                            "zero_terms_query": "NONE",
+                            "auto_generate_synonyms_phrase_query": True,
+                            "fuzzy_transpositions": True,
+                            "tie_breaker": 1
                           }
                         }
-                    ] }} ]
-                  }
-               },
-              "script_fields": {
+                      ]
+                    }
+                },
+                "script_score" : {
+                    "script" : {
+                      "lang": "painless",
+                     "source": """
+                                      long i = 0;
+                                      String ma;
+                                      def m;
+                                      Pattern reg1 = /\w{0,20}""" + regex + """\w{0,10}/im;
+                                      if (params._source.map != null){
+                                          m = reg1.matcher(params._source.map.lexiq);
+                                          while (m.find()) {
+                                             ma = m.group();
+                                             if (params._source.map.count[ma] != null)
+                                               i += params._source.map.count[ma];
+                                          }
+                                          if  (params._source.map.count[""" + '"' + word + '"' + """] != null)
+                                             i += params._source.map.count[""" + '"' + word + '"' + """] * 5;
+                                      }
+
+                                      reg1 = /""" + regex + """/im;
+                                      m = reg1.matcher(params._source.title);
+                                      while (m.find()) {
+                                        i += 100;
+                                      }
+                                      m = reg1.matcher(params._source.url);
+                                      while (m.find()) {
+                                        i += 50;
+                                      }
+                                      if (params._source.lang != "fr"){
+                                        i = i / 5;
+                                      }
+                                      return i;
+                               """
+                   }
+                }
+            }}
+           ,
+          "script_fields": {
                  "match": {
                    "script": {
                      "lang": "painless",
-                     "source": """    short i = 0;
-                                      short i2 = 0;
-                                      short i3 = 0;
-                                      short i4 = 0;
+                     "source": """
+                                      short i = 0;
                                       short limit = """ + str(limit) + """ ;
-                                      String[] x = new String[limit];
-                                      String[] x2 = new String[limit];
-                                      Pattern reg1 = /.{0,10}\\b""" + regex + """\\b.{0,100}/im;
-                                      Pattern reg2 = /.{0,10}(\\B""" + regex + """|""" + regex + """\\B|\\B""" + regex + """\\B).{0,100}/im;
-
-                                      def m = reg1.matcher(params._source.text);
-                                      while ( m.find() && i < limit ) {
-                                         x[i] = m.group();
-                                         ++i;
+                                      String[] x = new String[limit + 1];
+                                      if (params._source.text != null){
+                                        Pattern reg1 = /(\w{0,20}){0,1}\W{0,3}""" + regex + """(\W{0,3}\w{0,20}){0,4}/im;
+                                        def m = reg1.matcher(params._source.text);
+                                        while (m.find() && i < limit) {
+                                           x[i] = m.group();
+                                           ++i;
+                                        }
+                                        while (m.find()) {
+                                           ++i;
+                                        }
                                       }
-
-                                      m = reg2.matcher(params._source.text);
-                                      while ( m.find() && i2 < limit ) {
-                                          x2[i2] = m.group();
-                                          ++i2;
-                                      }
-
-                                      m = reg1.matcher(params._source.title);
-                                      while ( m.find() && i3 < limit ) {
-                                         ++i3;
-                                      }
-
-                                      m = reg2.matcher(params._source.title);
-                                      while ( m.find() && i4 < limit ) {
-                                          ++i4;
-                                      }
-
-
-                                      String[][] res = new String[3][i > i2 ? i + 2 : i2 + 2];
-
-                                      res[0][0] = Integer.toString(i);
-                                      while (--i >= 0) {
-                                        res[0][i + 1] = x[i];
-                                      }
-
-                                      res[1][0] = Integer.toString(i2);
-                                      while (--i2 >= 0) {
-                                        res[1][i2 + 1] = x2[i2];
-                                      }
-
-                                      res[2][0] = Integer.toString(i3);
-                                      res[2][1] = Integer.toString(i4);
-
-                                      return res;"""
+                                      x[limit] = Integer.toString(i);
+                                      return x;"""
                    }
-                 },
-                "title": {
-                   "script": {
-                     "lang": "painless",
-                     "source": "return params._source.title"
-                   }
-                 },
-                "lang": {
-                   "script": {
-                     "lang": "painless",
-                     "source": "return params._source.lang"
-                   }
-                 },
-                 "url": {
-                    "script": {
-                      "lang": "painless",
-                      "source": "return params._source.url"
-                    }
-                  }
-              },
-               "size": limit
+                 }
+          }
         }
         es.indices.refresh(index="documents")
-        res = es.search(index="documents", body=query)
-        mat = []
-        sup = []
-        for i in res["hits"]["hits"]:
-            l1 = int(i["fields"]["match"][0][0][0])
-            l2 = int(i["fields"]["match"][0][1][0])
-            l3 = int(i["fields"]["match"][0][2][0])
-            l4 = int(i["fields"]["match"][0][2][1])
-            data = {
-            "title" : i["fields"]["title"][0],
-            "url": i["fields"]["url"][0],
-            "lang": i["fields"]["lang"][0],
-            "match" : {
-                "perfect": {
-                        "data" : i["fields"]["match"][0][0][1:l1 + 1],
-                        "length": l1,
-                    },
-                "fuzzy": {
-                        "data" : i["fields"]["match"][0][1][1:l2 + 1],
-                        "length": l2,
-                    },
-                "title": l3 + l4
-                },
-            "score": l1 * limit + l2 + l3 * limit * limit + l4 * limit
-            }
-            for i2 in range(data["match"]["perfect"]["length"]):
-                data["match"]["perfect"]["data"][i2] = re.sub(' +', ' ', data["match"]["perfect"]["data"][i2])
-            for i2 in range(data["match"]["fuzzy"]["length"]):
-                data["match"]["fuzzy"]["data"][i2] = re.sub(' +', ' ', data["match"]["fuzzy"]["data"][i2])
-            if data["match"]["fuzzy"]["length"] == 0 and data["match"]["perfect"]["length"] == 0 and data["match"]["title"] == 0:
-                del data["match"]
-                sup.append(data)
-            else:
-                if data["match"]["fuzzy"]["length"] == 0:
-                    del data["match"]["fuzzy"]
-                if data["match"]["perfect"]["length"] == 0:
-                    del data["match"]["perfect"]
-                if data["match"]["title"] == 0:
-                    del data["match"]["title"]
-                mat.append(data)
-        n = len(mat)
-        for i in range(n):
-            for j in range(0, n-i-1):
-                if mat[j]["score"] < mat[j+1]["score"] :
-                    mat[j], mat[j+1] = mat[j+1], mat[j]
-        return [True, {"matches": mat, "supposed": sup, "query": query}, None]
+        res = es.search(index="documents", body=query)["hits"]["hits"]
+        ret = []
+        i = 0
+        while i < len(res):
+            i2 = 0
+            input = res[i]["_source"]
+            match = res[i]["fields"]["match"][0]
+            input["score"] = res[i]["_score"]
+            input["match"] = {"number": match[limit], "text": []}
+            while i2 < limit and match[i2] != None:
+                input["match"]["text"].append(match[i2])
+                i2 += 1
+            ret.append(input)
+            i += 1
+        return [True, {"result": ret}, None]

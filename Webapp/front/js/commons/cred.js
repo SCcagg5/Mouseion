@@ -7,7 +7,7 @@ let cred = {
       data = {
          "pass" : "password"
        };
-      url = method + "://" + api + "/login/"
+      url = method + "://" + api + "/login"
       axios.post(url, data)
            .then(
              response => {

@@ -1,12 +1,12 @@
 let user = {
   methods: {
     retrieve: function(route, headers, callback) {
-      url = method + "://" + api + '/' + route + '/';
+      url = method + "://" + api + '/' + route;
       this.callapi(url, {headers: headers}, callback, 'GET')
     },
 
     send: function(route, data, callback){
-      url = method + "://" + api + '/' + route + '/';
+      url = method + "://" + api + '/' + route;
       this.callapi(url, data, callback, 'POST')
     },
 

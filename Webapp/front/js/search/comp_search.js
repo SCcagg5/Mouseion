@@ -34,7 +34,7 @@ methods: {
       data['data'] = {
         'word': this.searchword
       }
-      user.methods.send('search', data, this.result);
+      user.methods.retrieve('search', data, this.result);
   },
 
   result: function(data){
@@ -45,7 +45,6 @@ methods: {
   },
 
   get_text: function(url){
-    console.log(url, "ici")
     this.sear = false;
     this.recu = false;
     setTimeout(this.switchload, 350);

@@ -1,4 +1,4 @@
 var address = "localhost";
-var api = "apiocr." + address;
+var api = "api." + address;
 var method = "http";
 var redirect = "/index";

@@ -121,11 +121,18 @@ def pdf_mutlifile(cn, nextc):
     return cn.call_next(nextc, err)
 
 def search(cn, nextc):
-    err = check.contain(cn.pr, ["word", "lang"])
+    err = check.contain(cn.get, ["search"])
     if not err[0]:
-        return cn.toret.add_error(err[1], err[2])
-    cn.pr = err[1]
-    err = ocr.search(cn.pr["word"], cn.pr["lang"])
+        return cn.toret.add_error(err[1], err[2])        
+    cn.get = check.setnoneopt(cn.get, ["search", "type", "datef", "datet"])
+    cn.rt =  check.setnoneopt(cn.rt, ["search"])
+    err = ocr.search(
+                     word=cn.get["search"],
+                     lang=cn.rt["search"],
+                     type=cn.get["type"],
+                     date_from=cn.get["datef"],
+                     date_to=cn.get["datet"]
+                     )
     return cn.call_next(nextc, err)
 
 def gettext(cn, nextc):

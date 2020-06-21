@@ -143,6 +143,8 @@ class check:
         return False
 
     def setnoneopt(json, arr_opt):
+        if json is None:
+            json = {}
         for i in arr_opt:
             if i not in json:
                 json[i] = None
