@@ -32,19 +32,29 @@ class pdf:
             content = base64.encodestring(open(path + file , "rb").read()).decode("utf-8").replace("\n", "")
         except:
             return [False, "Invalid pdf", 400]
-        l = text
+        l = text.lower()
         chara = ",'’&/-●"
         for k in chara:
             l = l.replace(k, ' ')
-        l = [w for w in l.strip(string.punctuation).split() if len(w)>1]
-        map = {"lexiq": ' '.join(list(dict.fromkeys(l))), "count": {}}
+        max = 600
+        le = [w for w in l.strip(string.punctuation).split() if len(w) > 3]
+        map = {"lexiq": ' '.join(list(dict.fromkeys(le))), "count": {}}
         n = 0
-        while n < len(l):
-            if str(l[n]) not in map["count"]:
-                map["count"][str(l[n])] = 1
+        while n < len(le):
+            if str(le[n]) not in map["count"]:
+                map["count"][str(le[n])] = 1
             else:
-                map["count"][str(l[n])] += 1
+                map["count"][str(le[n])] += 1
             n += 1
+        limit_l = 1
+        while len(map["count"]) > max:
+            t = []
+            for i in map["count"]:
+                if map["count"][i] <= limit_l and len(map["count"]) - len(t) > max :
+                    t.append(i)
+            for i in t:
+                del map["count"][i]
+            limit_l += 1
         return [True, {"text": text, "content": content, "map": map}, None]
 
     def get_lang(text, lang = None):
@@ -289,6 +299,16 @@ class ocr:
                             "auto_generate_synonyms_phrase_query": True,
                             "fuzzy_transpositions": True,
                             "tie_breaker": 1
+                          }
+                        },
+                        {
+                          "regexp": {
+                            "text": {
+                                "value": regex,
+                                "max_determinized_states": 100,
+                                "rewrite": "constant_score",
+                                "flags": "ALL",
+                            }
                           }
                         }
                       ]
