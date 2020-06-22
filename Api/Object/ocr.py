@@ -310,6 +310,26 @@ class ocr:
                                 "flags": "ALL",
                             }
                           }
+                        },
+                        {
+                          "regexp": {
+                            "url": {
+                                "value": regex,
+                                "max_determinized_states": 100,
+                                "rewrite": "constant_score",
+                                "flags": "ALL",
+                            }
+                          }
+                        },
+                        {
+                          "regexp": {
+                            "title": {
+                                "value": regex,
+                                "max_determinized_states": 100,
+                                "rewrite": "constant_score",
+                                "flags": "ALL",
+                            }
+                          }
                         }
                       ]
                     }
