@@ -56,7 +56,7 @@ class pdf:
             for i in t:
                 del map["count"][i]
             limit_l += 1
-        return [True, {"text": text, "content": content, "map": map}, None]
+        return [True, {"text": text, "content": content, "map": map["count"], "lexiq": map["lexiq"]}, None]
 
     def get_lang(text, lang = None):
         return [True, {"lang" : lang if lang else detect(text)}, None]
@@ -189,6 +189,7 @@ class ocr:
                 input["content"] = text[1]["content"]
              input["text"] = text[1]["text"]
              input["map"] = text[1]["map"]
+             input["lexiq"] = text[1]["lexiq"]
         input["lang"] = pdf.get_lang(input["text"] if 'text' in input else None, lang)[1]["lang"]
         #try:
         res = es.index(index='documents', body=input, request_timeout=30)
@@ -292,7 +293,7 @@ class ocr:
                         {
                           "multi_match" : {
                             "query":      word,
-                            "fields":     ["url", "title", "text"],
+                            "fields":     ["map.lexiq"],
                             "type":       "bool_prefix",
                             "boost": 1,
                             "operator": "OR",
@@ -307,7 +308,7 @@ class ocr:
                         },
                         {
                           "regexp": {
-                            "text": {
+                            "map.lexiq": {
                                 "value": regex,
                                 "max_determinized_states": 100,
                                 "rewrite": "constant_score",
