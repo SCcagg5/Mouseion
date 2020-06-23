@@ -3,3 +3,4 @@ logs/
 Db/elastic/data/
 .env
 Proxy/conf/docker-*
+certs/
