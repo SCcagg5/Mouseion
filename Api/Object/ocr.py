@@ -395,7 +395,7 @@ class ocr:
           }
         }
         es.indices.refresh(index="documents")
-        res = es.search(index="documents", body=query)["hits"]["hits"]
+        res = es.search(index="documents", body=query, request_timeout=600)["hits"]["hits"]
         ret = []
         pos = []
         i = 0
