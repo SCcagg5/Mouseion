@@ -277,6 +277,7 @@ class ocr:
     def search(word, lang, type, date_from, date_to, page = 1, size = 20):
         word = unidecode.unidecode(str(word)) if word else ""
         regex = word.replace(" ", "\\ ").replace("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
+        words = word.split(" ")
         limit = 20
         page = 1 if page is None or int(page) < 2 else int(page)
         size = 20 if size is None or int(size) < 20 else int(size)
@@ -396,17 +397,22 @@ class ocr:
         es.indices.refresh(index="documents")
         res = es.search(index="documents", body=query)["hits"]["hits"]
         ret = []
+        pos = []
         i = 0
         while i < len(res):
             i2 = 0
             input = res[i]["_source"]
             match = res[i]["fields"]["match"][0]
             input["score"] = res[i]["_score"]
-            input["match"] = {"number": match[limit], "text": []}
+            input["match"] = {"number": int(match[limit]), "text": []}
             while i2 < limit and match[i2] != None:
                 input["match"]["text"].append(match[i2])
                 i2 += 1
             input["match"]["text"] = list(dict.fromkeys(input["match"]["text"]))
-            ret.append(input)
+            if input["match"]["number"] == 0:
+                del input["match"]
+                pos.append(input)
+            else:
+                ret.append(input)
             i += 1
-        return [True, {"result": ret}, None]
+        return [True, {"result": ret, "possible": pos}, None]
