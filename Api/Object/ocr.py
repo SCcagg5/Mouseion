@@ -278,10 +278,8 @@ class ocr:
         word = unidecode.unidecode(str(word)) if word else ""
         regex = word.replace(" ", "\\ ").replace("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
         limit = 20
-        page = int(page)
-        size = int(size)
-        page = 1 if page is None or page < 2 else page
-        size = 20 if size is None or size < 20 else size
+        page = 1 if page is None or int(page) < 2 else int(page)
+        size = 20 if size is None or int(size) < 20 else int(size)
         query = {
           "size": size,
           "from" : (page - 1)  * size,
