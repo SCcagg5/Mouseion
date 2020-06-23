@@ -290,12 +290,10 @@ class ocr:
                      "bool": {
                       "should": [
                         {
-                          "regexp": {
+                         "match": {
                             "lexiq": {
-                                "value":  regex,
-                                "max_determinized_states": 100,
-                                "rewrite": "constant_score",
-                                "flags": "ALL"
+                                "query": "\"" + word +"\"",
+                                "operator": "or"
                             }
                           }
                         },
