@@ -21,14 +21,11 @@ class pdf:
             title = title.strip('()') if title else None
         return [True, {"title": title if title else file.split(".pdf")[0]} , None]
 
-    def get_text(path, file, limit = 3000000):
+    def get_text(path, file, limit = 800000):
         try:
             with open(path + file , "rb") as f:
                 p = pdftotext.PDF(f)
             text =  "".join(p)
-            if limit:
-                if len(text) > limit:
-                    return [False, "Text too long", 400]
             content = base64.encodestring(open(path + file , "rb").read()).decode("utf-8").replace("\n", "")
         except:
             return [False, "Invalid pdf", 400]
@@ -37,7 +34,11 @@ class pdf:
         for k in chara:
             l = l.replace(k, ' ')
         max = 600
-        le = [w for w in l.strip(string.punctuation).split() if len(w) > 3]
+        t = l.strip(string.punctuation).split()
+        if limit:
+            if len(t) > limit:
+                return [False, "Text too long", 400]
+        le = [w for w in  t if len(w) > 3]
         map = {"lexiq": ' '.join(list(dict.fromkeys(le))), "count": {}}
         n = 0
         while n < len(le):
