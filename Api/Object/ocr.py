@@ -191,11 +191,7 @@ class ocr:
              input["map"] = text[1]["map"]
              input["lexiq"] = text[1]["lexiq"]
         input["lang"] = pdf.get_lang(input["text"] if 'text' in input else None, lang)[1]["lang"]
-        #try:
         res = es.index(index='documents', body=input, request_timeout=30)
-        #except:
-        #    es.indices.create(index = 'documents')
-        #    res = es.index(index='documents', body=input, request_timeout=30)
         return [True, {"input": input}, None]
 
     def img_analyse(file, title, lang, restriction, save, url, name, folder, date):
@@ -278,61 +274,50 @@ class ocr:
             return [False, "Internal Error", 500]
         return [True, {"text": text}, None]
 
-    def search(word, lang, type, date_from, date_to, full = None):
+    def search(word, lang, type, date_from, date_to, page = 1, size = 20):
         word = unidecode.unidecode(str(word)) if word else ""
         regex = word.replace(" ", "\\ ").replace("e", "[eéèêë]").replace("a", "[aàâá]").replace("c", "[cç]").replace("i", "[iïî]").replace("o", "[oòóôö]").replace("u", "[uúùû]")
         limit = 20
+        page = int(page)
+        size = int(size)
+        page = 1 if page is None or page < 2 else page
+        size = 20 if size is None or size < 20 else size
         query = {
-          "size": 50,
-          "_source":["type", "url", "title", "lang"],
+          "size": size,
+          "from" : (page - 1)  * size,
+          "_source":["type", "url", "title", "lang", "date"],
           "query": {
             "function_score": {
                 "query": {
                      "bool": {
                       "should": [
                         {
-                          "multi_match" : {
-                            "query":      word,
-                            "fields":     ["map.lexiq"],
-                            "type":       "bool_prefix",
-                            "boost": 1,
-                            "operator": "OR",
-                            "slop": 0,
-                            "prefix_length": 0,
-                            "max_expansions": 50,
-                            "zero_terms_query": "NONE",
-                            "auto_generate_synonyms_phrase_query": True,
-                            "fuzzy_transpositions": True,
-                            "tie_breaker": 1
-                          }
-                        },
-                        {
                           "regexp": {
-                            "map.lexiq": {
-                                "value": regex,
+                            "lexiq": {
+                                "value":  regex,
                                 "max_determinized_states": 100,
                                 "rewrite": "constant_score",
-                                "flags": "ALL",
+                                "flags": "ALL"
                             }
                           }
                         },
                         {
                           "regexp": {
                             "url": {
-                                "value": regex,
+                                "value":  regex,
                                 "max_determinized_states": 100,
                                 "rewrite": "constant_score",
-                                "flags": "ALL",
+                                "flags": "ALL"
                             }
                           }
                         },
                         {
                           "regexp": {
                             "title": {
-                                "value": regex,
+                                "value":  regex,
                                 "max_determinized_states": 100,
                                 "rewrite": "constant_score",
-                                "flags": "ALL",
+                                "flags": "ALL"
                             }
                           }
                         }
@@ -341,38 +326,39 @@ class ocr:
                 },
                 "script_score" : {
                     "script" : {
-                      "lang": "painless",
-                     "source": """
-                                      long i = 0;
+                        "lang": "painless",
+                        "source": """
+                                      int i = 1;
                                       String ma;
                                       def m;
-                                      Pattern reg1 = /\w{0,20}""" + regex + """\w{0,10}/im;
-                                      if (params._source.map != null){
-                                          m = reg1.matcher(params._source.map.lexiq);
+                                      Pattern reg1 = /""" + regex +"""/im;
+                                      if (params._source.lexiq != null){
+                                          m = reg1.matcher(params._source.lexiq);
                                           while (m.find()) {
                                              ma = m.group();
-                                             if (params._source.map.count[ma] != null)
-                                               i += params._source.map.count[ma];
-                                             else
-                                               i += 1;
+                                             if (params._source.map[ma] != null) {
+                                               i += params._source.map[ma];
+                                             }
+                                             else {
+                                               ++i;
+                                             }
                                           }
-                                          if  (params._source.map.count[""" + '"' + word + '"' + """] != null)
-                                             i += params._source.map.count[""" + '"' + word + '"' + """] * 5;
+                                          if  (params._source.map[\"""" + word + """\"] != null) {
+                                             i += params._source.map[\"""" + word + """\"] * 10 * i;
+                                          }
                                       }
-
-                                      reg1 = /""" + regex + """/im;
                                       m = reg1.matcher(params._source.title);
                                       while (m.find()) {
-                                        i += 100;
+                                        i += 1000;
                                       }
                                       m = reg1.matcher(params._source.url);
                                       while (m.find()) {
-                                        i += 50;
+                                        i += 500;
                                       }
-                                      if (params._source.lang != "fr"){
-                                        i = i / 5;
+                                      if (params._source.lang != \"""" + lang + """\"){
+                                        i /= 100;
                                       }
-                                      return i;
+                                      return (i);
                                """
                    }
                 }
@@ -386,9 +372,17 @@ class ocr:
                                       short i = 0;
                                       short limit = """ + str(limit) + """ ;
                                       String[] x = new String[limit + 1];
-                                      if (params._source.text != null){
-                                        Pattern reg1 = /(\w{0,20}){0,1}\W{0,3}""" + regex + """(\W{0,3}\w{0,20}){0,4}/im;
-                                        def m = reg1.matcher(params._source.text);
+                                      def m;
+                                      Pattern reg1;
+                                      if (params._source.text != null) {
+                                        reg1 = /(\w{0,20}){0,1}\W{1,3}""" + regex +"""\W{1,3}(\W{0,3}\w{0,20}){0,4}/im;
+                                        m = reg1.matcher(params._source.text);
+                                        while (m.find() && i < limit) {
+                                           x[i] = m.group();
+                                           ++i;
+                                        }
+                                        reg1 = /(\w{0,20}){0,1}\W{0,3}""" + regex +"""(\W{0,3}\w{0,20}){0,4}/im;
+                                        m = reg1.matcher(params._source.text);
                                         while (m.find() && i < limit) {
                                            x[i] = m.group();
                                            ++i;
@@ -398,7 +392,7 @@ class ocr:
                                         }
                                       }
                                       x[limit] = Integer.toString(i);
-                                      return x;"""
+                                      return (x);"""
                    }
                  }
           }
@@ -416,6 +410,7 @@ class ocr:
             while i2 < limit and match[i2] != None:
                 input["match"]["text"].append(match[i2])
                 i2 += 1
+            input["match"]["text"] = list(dict.fromkeys(input["match"]["text"]))
             ret.append(input)
             i += 1
         return [True, {"result": ret}, None]
