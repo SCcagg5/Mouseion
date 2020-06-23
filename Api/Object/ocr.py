@@ -26,6 +26,9 @@ class pdf:
             with open(path + file , "rb") as f:
                 p = pdftotext.PDF(f)
             text =  "".join(p)
+            if limit:
+                if len(text) > limit:
+                    return [False, "Text too long", 400]
             content = base64.encodestring(open(path + file , "rb").read()).decode("utf-8").replace("\n", "")
         except:
             return [False, "Invalid pdf", 400]
@@ -35,9 +38,6 @@ class pdf:
             l = l.replace(k, ' ')
         max = 600
         t = l.strip(string.punctuation).split()
-        if limit:
-            if len(t) > limit:
-                return [False, "Text too long", 400]
         le = [w for w in  t if len(w) > 3]
         map = {"lexiq": ' '.join(list(dict.fromkeys(le))), "count": {}}
         n = 0
