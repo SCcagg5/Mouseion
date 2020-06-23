@@ -3,7 +3,7 @@ import json, sys
 import requests
 import time
 
-url = "http://51.158.126.88:8080/login/"
+url = "https://api.mouseion.online"
 
 payload = "{\n\t\"pass\": \"password\"\n}"
 headers = {
@@ -11,9 +11,9 @@ headers = {
   'Cookie': 'token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE1ODYxMTk4OTQsInBhc3N3b3JkIjotNjI2MDY0NDM1OTc2NDU1Mjg1M30.p4xybVVN9eJ7XfzoCh3DGABpZRe-TG6i6jmdbx684Pc'
 }
 
-response = requests.request("POST", url, headers=headers, data = payload)
-
-token = json.loads(response.text.encode('utf8'))["data"]["token"]
+response = requests.request("POST", url + '/login', headers=headers, data = payload)
+print(response.text)
+token = json.loads(response.text)["data"]["token"]
 
 words = ["aide",
 "chef",
@@ -316,19 +316,17 @@ words = ["aide",
 print("start")
 for i in words[4:]:
   urls = []
-  try:
-    for url in search(i + ' filetype:pdf', stop=500):
-      urls.append(url)
-    time.sleep(500);
-  except:
-      time.sleep(1200)
-      print("error" + i)
-  apiurl = "http://51.158.126.88:8080/multiocr/"
-
-  payload = "{\n\t\"files\": " + json.dumps(urls) + "\n}"
+  apiurl = url + "/pdf/add/from_url"
   headers = {
       'Content-Type': 'application/json',
       'Cookie': 'token=' + token
     }
-  response = requests.request("POST", apiurl, headers=headers, data = payload)
+  try:
+    for ur in search(i + ' filetype:pdf', stop=50):
+      response = requests.request("POST", apiurl, headers=headers, data = "{\"file\": \"" + ur + "\"}")
+      print(response.text)
+      time.sleep(5);
+  except:
+      time.sleep(1200)
+      print("error" + i)
   print(i + " done")

@@ -89,7 +89,10 @@ class pdf:
                 elif "date" in res["hits"]["hits"][0]["_source"] :
                    return True if date == res["hits"]["hits"][0]["_source"]["date"] else False
         except:
-            es.indices.create(index='documents')
+            try:
+              es.indices.create(index='documents')
+            except:
+              pass
         return False
 
 class ocr:
@@ -98,13 +101,13 @@ class ocr:
             return [False, "Files should be a list", 400]
         total = {}
         for file in files:
-            if not isinstance(file, list):
+            if not isinstance(file, dict):
                 return [False, "Files should be a list of objects", 400]
             res = ocr.download( str(file["file"]))
             if not res[0]:
                 add = {"succes": False, "error": res[1]}
             else:
-                res = ocr.analyse(str(file["file"]),
+                res = ocr.pdf_analyse(str(file["file"]),
                                  str(file["title"]) if "title" in file else None,
                                  str(file["lang"]) if "lang" in file else None,
                                  str(file["restriction"]) if "restriction" in file else None,
@@ -128,7 +131,8 @@ class ocr:
         url = urlparse(BASE_URL + file).geturl()
         file = file.split('/')
         file = file[len(file) - 1].split('#')[0].split('?')[0]
-        try:
+        if True:
+        #try:
             r = requests.get(url, stream=True)
             if "Last-Modified" in r.headers:
                 date = r.headers["Last-Modified"]
@@ -141,8 +145,8 @@ class ocr:
             with open("./files/" + file, 'wb') as fd:
                 for chunk in r.iter_content(2000):
                     fd.write(chunk)
-        except:
-            return [False, "Invalid File name:" + file, 400]
+        #except:
+        #    return [False, "Invalid File name:" + file, 400]
         return [True, {"date": date}, None]
 
     def frombase64(b64, type):
@@ -186,11 +190,11 @@ class ocr:
              input["text"] = text[1]["text"]
              input["map"] = text[1]["map"]
         input["lang"] = pdf.get_lang(input["text"] if 'text' in input else None, lang)[1]["lang"]
-        try:
-            res = es.index(index='documents', body=input, request_timeout=30)
-        except:
-            es.indices.create(index = 'documents')
-            res = es.index(index='documents', body=input, request_timeout=30)
+        #try:
+        res = es.index(index='documents', body=input, request_timeout=30)
+        #except:
+        #    es.indices.create(index = 'documents')
+        #    res = es.index(index='documents', body=input, request_timeout=30)
         return [True, {"input": input}, None]
 
     def img_analyse(file, title, lang, restriction, save, url, name, folder, date):
