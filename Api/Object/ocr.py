@@ -21,7 +21,7 @@ class pdf:
             title = title.strip('()') if title else None
         return [True, {"title": title if title else file.split(".pdf")[0]} , None]
 
-    def get_text(path, file, limit = None):
+    def get_text(path, file, limit = 3000000):
         try:
             with open(path + file , "rb") as f:
                 p = pdftotext.PDF(f)
@@ -131,8 +131,7 @@ class ocr:
         url = urlparse(BASE_URL + file).geturl()
         file = file.split('/')
         file = file[len(file) - 1].split('#')[0].split('?')[0]
-        if True:
-        #try:
+        try:
             r = requests.get(url, stream=True)
             if "Last-Modified" in r.headers:
                 date = r.headers["Last-Modified"]
@@ -145,8 +144,8 @@ class ocr:
             with open("./files/" + file, 'wb') as fd:
                 for chunk in r.iter_content(2000):
                     fd.write(chunk)
-        #except:
-        #    return [False, "Invalid File name:" + file, 400]
+        except:
+            return [False, "Invalid File name:" + file, 400]
         return [True, {"date": date}, None]
 
     def frombase64(b64, type):
@@ -352,6 +351,8 @@ class ocr:
                                              ma = m.group();
                                              if (params._source.map.count[ma] != null)
                                                i += params._source.map.count[ma];
+                                             else
+                                               i += 1;
                                           }
                                           if  (params._source.map.count[""" + '"' + word + '"' + """] != null)
                                              i += params._source.map.count[""" + '"' + word + '"' + """] * 5;

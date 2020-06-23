@@ -12,3 +12,18 @@ Document search engine hosted on: https://mouseion.online
   - csv
   - docx
  ```
+
+
+```
+PUT documents
+{
+  "mappings": {
+     "properties": {
+       "map": {
+        "type": "object",
+        "enabled": false
+      }
+     }
+  }
+}
+```
