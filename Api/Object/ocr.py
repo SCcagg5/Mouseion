@@ -412,7 +412,7 @@ class ocr:
                 input["match"]["text"].append(match[i2])
                 i2 += 1
             input["match"]["text"] = list(dict.fromkeys(input["match"]["text"]))
-            if input["match"]["number"] == 0:
+            if input["match"]["perfect"] == 0 and input["match"]["partial"]:
                 del input["match"]
                 pos.append(input)
             else:

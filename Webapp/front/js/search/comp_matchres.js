@@ -10,6 +10,9 @@ filters: {
   lengthp: function(x){
     return x  + ( x == 1 ? " hit" : " hits")
   },
+  lengtfp: function(x){
+    return x  + ( x == 1 ? " partial hit" : " partial hits")
+  },
   reg: function( str, searchw, filter){
     const reg = new RegExp(searchw, 'gi')
     reg.test(str);
@@ -69,7 +72,8 @@ template: `
                 </div>
                 <div class="col-12" style="padding-right: 0px;flex: 0 0 97%;max-width: 97%;padding-left: 6px;">
                   <div>
-                    <div class="btn btn-secondary small-btn mr-2">{{ data.match.number | lengthp }}</div>
+                    <div v-if="data.match.perfect != 0" class="btn btn-secondary small-btn mr-2">{{ data.match.perfect | lengthp }}</div>
+                    <div v-if="data.match.partial != 0" class="btn btn-secondary small-btn mr-2">{{ data.match.partial | lengthp }}</div>
                   </div>
                   <div class="extract">
                     <div></div>
