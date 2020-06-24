@@ -10,7 +10,7 @@ filters: {
   lengthp: function(x){
     return x  + ( x == 1 ? " hit" : " hits")
   },
-  lengtfp: function(x){
+  lengthf: function(x){
     return x  + ( x == 1 ? " partial hit" : " partial hits")
   },
   reg: function( str, searchw, filter){
@@ -40,6 +40,12 @@ filters: {
      str = str.replace(/\0/g, '').substring(2);
      console.log(str);
      return str;
+   },
+   datecheck: function(str){
+     if (str == void 0){
+       str = "Unkown date";
+     }
+     return str;
    }
 },
 
@@ -53,14 +59,15 @@ methods: {
          .replace(/</g, "&lt;")
          .replace(/>/g, "&gt;")
          .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
+         .replace(/'/g, "&#039;")
+         .replace(/\ \./g, "");
   }
 },
 
 template: `
           <div>
             <div class="container result">
-              <small style="top: -15px; position: relative; font-size: 60%"> {{ data.date }} </small>
+              <small style="top: -15px; position: relative; font-size: 60%"> {{ data.date | datecheck }} </small>
               <div class="row inside" style="margin-top: -14px;">
                 <div class="mr-2 btn btn-primary small-btn">{{ data.lang }}</div>
                 <div style="max-width: calc(100% - 91px);">{{ decodeURI(data.title) | hex_asc | old_hex }}</div>
@@ -73,16 +80,12 @@ template: `
                 <div class="col-12" style="padding-right: 0px;flex: 0 0 97%;max-width: 97%;padding-left: 6px;">
                   <div>
                     <div v-if="data.match.perfect != 0" class="btn btn-secondary small-btn mr-2">{{ data.match.perfect | lengthp }}</div>
-                    <div v-if="data.match.partial != 0" class="btn btn-secondary small-btn mr-2">{{ data.match.partial | lengthp }}</div>
+                    <div v-if="data.match.partial != 0" class="btn btn-secondary small-btn">{{ data.match.partial | lengthf }}</div>
                   </div>
                   <div class="extract">
                     <div></div>
                     <div v-if="data.match.text">
                       <span v-for="i in (data.match.text.length > 4 ? 4 : data.match.text.length)" :inner-html.prop=" data.match.text[i - 1] | reg(searchw, escapeHtml)">
-                      </span>
-                    </div>
-                    <div v-if="data.match.fuzzy && !data.match.perfect">
-                      <span v-for="i in (data.match.fuzzy.length > 4 ? 4 : data.match.fuzzy.length)" :inner-html.prop=" data.match.fuzzy.data[i - 1] | reg(searchw, escapeHtml)">
                       </span>
                     </div>
                   </div>
