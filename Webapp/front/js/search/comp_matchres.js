@@ -24,6 +24,10 @@ filters: {
   },
   hex_asc: function(hexx) {
     if (hexx[0] != '<' || hexx.replace("<FEFF", '') == hexx) {
+      if (hexx[0] == '\\'){
+        hexx = unescape((hexx + "").replace(/\\u([\d\w]{4})/gi, function (match, grp) {
+          return String.fromCharCode(parseInt(grp, 16)); } ))
+      }
       return hexx;
     }
     var hex = hexx.replace("<", '').replace('>', '').toString();

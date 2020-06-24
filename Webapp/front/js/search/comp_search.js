@@ -22,7 +22,40 @@ filters:{
     let last = actual - date;
     let min = Math.floor((last/1000/60) << 0);
     return min
-  }
+  },
+  reg: function( str, searchw, filter){
+    const reg = new RegExp(searchw, 'gi')
+    reg.test(str);
+    return filter(str.slice(0, reg.lastIndex - searchw.length)) +
+          "<div class='regex'>" +
+           filter(str.slice(reg.lastIndex - searchw.length, reg.lastIndex)) +
+           "</div>" +
+           filter(str.slice(reg.lastIndex, str.length)) + " ... "
+  },
+  hex_asc: function(hexx) {
+    if (hexx[0] != '<' || hexx.replace("<FEFF", '') == hexx) {
+      if (hexx[0] == '\\'){
+        hexx = unescape((hexx + "").replace(/\\u([\d\w]{4})/gi, function (match, grp) {
+          return String.fromCharCode(parseInt(grp, 16)); } ))}
+      return hexx;
+    }
+    var hex = hexx.replace("<", '').replace('>', '').toString();
+  	var str = '';
+  	for (var n = 0; n < hex.length; n += 2) {
+  		str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));
+  	}
+  	return str;
+  },
+   old_hex: function(str){
+     if (str[0] != 'þ' || str[1] != 'ÿ'){
+       return str;
+     }
+     str = str.replace(/\0/g, '').substring(2);
+     if (str == ""){
+       return "No title";
+     }
+     return str;
+   }
 },
 
 methods: {
@@ -122,7 +155,7 @@ template: `
                 <div v-for="match in data.possible" class="probable">
                   <span class="may-dart"><b>></b></span>
                   <div class="mr-2 btn btn-primary small-btn">{{ match.lang }}</div>
-                  <div>{{ match.title }}</div>
+                  <div>{{ decodeURI(match.title) | hex_asc | old_hex  }}</div>
                 </div>
               </div>
             </div>
@@ -130,7 +163,7 @@ template: `
               <div v-on:click=back_result() class="back-res"><span class="dart">←</span><div class="back-text">Back to search results</div></div>
               <div class="text-sup">
               <div class="mr-2 btn btn-primary text-sup">{{ text.lang }}</div>
-              <div class="title-text">{{text.title}}</div>
+              <div class="title-text">{{ text.title }}</div>
               </div>
               <br>
               <pre class="text">
