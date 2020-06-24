@@ -1,4 +1,4 @@
-var address = "localhost";
+var address = "mouseion.online";
 var api = "api." + address;
-var method = "http";
+var method = "https";
 var redirect = "/index";

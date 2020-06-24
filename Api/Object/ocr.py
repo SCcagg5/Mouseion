@@ -367,8 +367,9 @@ class ocr:
                      "lang": "painless",
                      "source": """
                                       short i = 0;
+                                      short i1 = 0;
                                       short limit = """ + str(limit) + """ ;
-                                      String[] x = new String[limit + 1];
+                                      String[] x = new String[limit + 2];
                                       def m;
                                       Pattern reg1;
                                       if (params._source.text != null) {
@@ -378,6 +379,7 @@ class ocr:
                                            x[i] = m.group();
                                            ++i;
                                         }
+                                        i1 = i;
                                         reg1 = /(\w{0,20}){0,1}\W{0,3}""" + regex +"""(\W{0,3}\w{0,20}){0,4}/im;
                                         m = reg1.matcher(params._source.text);
                                         while (m.find() && i < limit) {
@@ -388,7 +390,8 @@ class ocr:
                                            ++i;
                                         }
                                       }
-                                      x[limit] = Integer.toString(i);
+                                      x[limit] = Integer.toString(i1);
+                                      x[limit + 1] = Integer.toString(i - 2 * i1);
                                       return (x);"""
                    }
                  }
@@ -404,7 +407,7 @@ class ocr:
             input = res[i]["_source"]
             match = res[i]["fields"]["match"][0]
             input["score"] = res[i]["_score"]
-            input["match"] = {"number": int(match[limit]), "text": []}
+            input["match"] = {"perfect": int(match[limit]), "partial":  int(match[limit + 1]) , "text": []}
             while i2 < limit and match[i2] != None:
                 input["match"]["text"].append(match[i2])
                 i2 += 1

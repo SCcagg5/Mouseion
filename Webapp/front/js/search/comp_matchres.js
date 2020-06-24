@@ -8,10 +8,7 @@ props: {data: {default: void 0}, searchw: {default: void 0}},
 
 filters: {
   lengthp: function(x){
-    return (x == 20 ? "+20" : x)  + ( x == 1 ? " hit" : " hits")
-  },
-  lengthf: function(x){
-    return (x == 20 ? "+20" : x) + ( x == 1 ? " partial hit" : " partials hits")
+    return x  + ( x == 1 ? " hit" : " hits")
   },
   reg: function( str, searchw, filter){
     const reg = new RegExp(searchw, 'gi')
@@ -21,7 +18,26 @@ filters: {
            filter(str.slice(reg.lastIndex - searchw.length, reg.lastIndex)) +
            "</div>" +
            filter(str.slice(reg.lastIndex, str.length)) + " ... "
-  }
+  },
+  hex_asc: function(hexx) {
+    if (hexx[0] != '<' || hexx.replace("<FEFF", '') == hexx) {
+      return hexx;
+    }
+    var hex = hexx.replace("<", '').replace('>', '').toString();
+  	var str = '';
+  	for (var n = 0; n < hex.length; n += 2) {
+  		str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));
+  	}
+  	return str;
+  },
+   old_hex: function(str){
+     if (str[0] != 'þ' || str[1] != 'ÿ'){
+       return str;
+     }
+     str = str.replace(/\0/g, '').substring(2);
+     console.log(str);
+     return str;
+   }
 },
 
 methods: {
@@ -41,9 +57,10 @@ methods: {
 template: `
           <div>
             <div class="container result">
-              <div class="row inside">
+              <small style="top: -15px; position: relative; font-size: 60%"> {{ data.date }} </small>
+              <div class="row inside" style="margin-top: -14px;">
                 <div class="mr-2 btn btn-primary small-btn">{{ data.lang }}</div>
-                <div>{{ data.title }}</div>
+                <div style="max-width: calc(100% - 91px);">{{ decodeURI(data.title) | hex_asc | old_hex }}</div>
                 <a :href=data.url class="ml-auto mr-2"><img class="img-icon " src="./imgs/pdf.svg"></img></a>
                 <img  v-on:click=text() class="img-icon" style="height: 23px;" src="./imgs/external.svg"></img>
               </div>
@@ -52,13 +69,12 @@ template: `
                 </div>
                 <div class="col-12" style="padding-right: 0px;flex: 0 0 97%;max-width: 97%;padding-left: 6px;">
                   <div>
-                    <div v-if="data.match.perfect" class="btn btn-secondary small-btn mr-2">{{ data.match.perfect.length | lengthp }}</div>
-                    <div v-if="data.match.fuzzy" class="btn btn-secondary small-btn ">{{ data.match.fuzzy.length | lengthf }}</div>
+                    <div class="btn btn-secondary small-btn mr-2">{{ data.match.number | lengthp }}</div>
                   </div>
                   <div class="extract">
                     <div></div>
-                    <div v-if="data.match.perfect">
-                      <span v-for="i in (data.match.perfect.length > 4 ? 4 : data.match.perfect.length)" :inner-html.prop=" data.match.perfect.data[i - 1] | reg(searchw, escapeHtml)">
+                    <div v-if="data.match.text">
+                      <span v-for="i in (data.match.text.length > 4 ? 4 : data.match.text.length)" :inner-html.prop=" data.match.text[i - 1] | reg(searchw, escapeHtml)">
                       </span>
                     </div>
                     <div v-if="data.match.fuzzy && !data.match.perfect">

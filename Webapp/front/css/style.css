@@ -142,13 +142,7 @@ body {
 	cursor: default;
 }
 
-h1:hover {
-	color: crimson;
-}
 
-h5:hover {
-	color: crimson;
-}
 
 .appear{
 	 visibility: visible !important;

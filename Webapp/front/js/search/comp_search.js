@@ -6,7 +6,8 @@ data: function() {
     load: false,
     recu: false,
     data: void 0,
-    text: void 0
+    text: void 0,
+    lang: "fr"
   }
 },
 
@@ -26,18 +27,22 @@ filters:{
 
 methods: {
   submit: function(){
+    if (this.searchword == ""){
+      return;
+    }
     this.sear = false
     this.recu = false;
     setTimeout(this.switchload, 350);
     let data = {}
-      data['headers'] = cred.methods.get_headers()
-      data['data'] = {
-        'word': this.searchword
-      }
-      user.methods.retrieve('search', data, this.result);
+    data = cred.methods.get_headers()
+    let param = '?search=' + this.searchword
+    url  = 'search/' + this.lang + param
+    location.href = "http" + "://" +  "localhost" + "#" + url
+    user.methods.retrieve(url , data, this.result);
   },
 
   result: function(data){
+    console.log(data);
     this.recu = true
     this.load = false
     this.sear = true
@@ -57,6 +62,7 @@ methods: {
   },
 
   result_text: function(data){
+    console.log(data);
     this.recu = true
     this.load = false
     this.sear = true
@@ -108,12 +114,12 @@ template: `
             </div>
             <div v-if="recu && data && !text && !load" class="res">
               <div v-on:click=back_search() class="back"><span class="dart">←</span><div class="back-text">Back to search</div></div>
-              <ul v-for="match in data.matches">
+              <ul v-for="match in data.result">
                 <matchres :searchw=searchword :data=match></matchres>
               </ul>
-              <div v-if="data.supposed.length > 0" class="probable-container">
+              <div v-if="data.possible.length > 0" class="probable-container">
                 <h5 class="may">May Interest you ...</h5>
-                <div v-for="match in data.supposed" class="probable">
+                <div v-for="match in data.possible" class="probable">
                   <span class="may-dart"><b>></b></span>
                   <div class="mr-2 btn btn-primary small-btn">{{ match.lang }}</div>
                   <div>{{ match.title }}</div>
