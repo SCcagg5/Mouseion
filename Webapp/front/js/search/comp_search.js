@@ -35,8 +35,9 @@ filters:{
   hex_asc: function(hexx) {
     if (hexx[0] != '<' || hexx.replace("<FEFF", '') == hexx) {
       if (hexx[0] == '\\'){
-        hexx = unescape((hexx + "").replace(/\\u([\d\w]{4})/gi, function (match, grp) {
-          return String.fromCharCode(parseInt(grp, 16)); } ))}
+        hexx = unescape((hexx + "").replace(/\\u([\d\w]{3})/gi, ""));
+        console.log(hexx);
+       }
       return hexx;
     }
     var hex = hexx.replace("<", '').replace('>', '').toString();
@@ -70,7 +71,7 @@ methods: {
     data = cred.methods.get_headers()
     let param = '?search=' + this.searchword
     url  = 'search/' + this.lang + param
-    location.href = "http" + "://" +  "localhost" + "#" + url
+    location.href = "https" + "://" +  "mouseion.online" + "#" + url
     user.methods.retrieve(url , data, this.result);
   },
 
@@ -91,7 +92,7 @@ methods: {
       data['data'] = {
         'url': url
       }
-      user.methods.send('text', data, this.result_text);
+      user.methods.send('text/', data, this.result_text);
   },
 
   result_text: function(data){
@@ -163,7 +164,7 @@ template: `
               <div v-on:click=back_result() class="back-res"><span class="dart">←</span><div class="back-text">Back to search results</div></div>
               <div class="text-sup">
               <div class="mr-2 btn btn-primary text-sup">{{ text.lang }}</div>
-              <div class="title-text">{{ text.title }}</div>
+              <div class="title-text">{{ decodeURI(text.title) | hex_asc | old_hex }}</div>
               </div>
               <br>
               <pre class="text">

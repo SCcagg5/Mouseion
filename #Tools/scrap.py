@@ -322,7 +322,7 @@ for i in words[4:]:
       'Cookie': 'token=' + token
     }
   try:
-    for ur in search(i + ' filetype:pdf', stop=50):
+    for ur in search(i + ' filetype:pdf', stop=500):
       response = requests.request("POST", apiurl, headers=headers, data = "{\"file\": \"" + ur + "\"}")
       print(response.text)
       time.sleep(5);
