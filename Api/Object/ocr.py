@@ -309,12 +309,10 @@ class ocr:
                           }
                         },
                         {
-                          "regexp": {
+                          "match": {
                             "title": {
-                                "value":  regex,
-                                "max_determinized_states": 100,
-                                "rewrite": "constant_score",
-                                "flags": "ALL"
+                              "query": "\"" + regex +"\"",
+                              "operator": "or"
                             }
                           }
                         }
@@ -412,10 +410,14 @@ class ocr:
                 input["match"]["text"].append(match[i2])
                 i2 += 1
             input["match"]["text"] = list(dict.fromkeys(input["match"]["text"]))
-            if input["match"]["perfect"] == 0 and input["match"]["partial"] == 0:
-                del input["match"]
-                pos.append(input)
-            else:
-                ret.append(input)
+            if lang == input["lang"]:
+              if input["match"]["perfect"] == 0 and input["match"]["partial"] == 0:
+                  del input["match"]
+                  if re.compile(r'.*' +regex+'.*', flags=re.IGNORECASE).search(str(input['title'])) is not None:
+                    ret.append(input)
+                  else:
+                    pos.append(input)
+              else:
+                  ret.append(input)
             i += 1
         return [True, {"result": ret, "possible": pos}, None]
