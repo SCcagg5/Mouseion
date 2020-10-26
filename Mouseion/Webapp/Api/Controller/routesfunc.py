@@ -1,5 +1,5 @@
 from Model.basic import check, auth
-from Object.ocr import ocr
+from Object.ocr import ocr, ged, file
 import json
 
 def getauth(cn, nextc):
@@ -23,7 +23,7 @@ def download(cn, nextc):
     if not err[0]:
         return cn.toret.add_error(err[1], err[2])
     cn.pr = err[1]
-    err = ocr.download(cn.pr["file"])
+    err =  ged.download(cn.pr["file"])
     if err[0]:
         cn.private["date"] = err[1]["date"]
     return cn.call_next(nextc, err)
@@ -117,7 +117,7 @@ def pdf_mutlifile(cn, nextc):
     if not err[0]:
         return cn.toret.add_error(err[1], err[2])
     cn.pr = err[1]
-    err = ocr.multiplefiles(cn.pr["files"])
+    err = ged.multiplefiles(cn.pr["files"])
     return cn.call_next(nextc, err)
 
 def search(cn, nextc):
@@ -126,9 +126,9 @@ def search(cn, nextc):
         return cn.toret.add_error(err[1], err[2])
     cn.get = check.setnoneopt(cn.get, ["search", "type", "datef", "datet", "page", "size"])
     cn.rt =  check.setnoneopt(cn.rt, ["search"])
-    err = ocr.search(
+    err = file.search(
                      word=cn.get["search"],
-                     lang=cn.rt["search"],
+                     lang=cn.rt["search"] if cn.rt["search"] is not None else cn.get['type'],
                      type=cn.get["type"],
                      date_from=cn.get["datef"],
                      date_to=cn.get["datet"],
@@ -143,5 +143,5 @@ def gettext(cn, nextc):
         return cn.toret.add_error(err[1], err[2])
     cn.pr = err[1]
     cn.pr = check.setnoneopt(cn.pr, ["url", "date"])
-    err = ocr.gettext(cn.pr["url"], cn.pr["date"])
+    err = file.gettext(cn.pr["url"], cn.pr["date"])
     return cn.call_next(nextc, err)

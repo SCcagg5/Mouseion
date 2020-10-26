@@ -1,0 +1,196 @@
+{
+      "size": 20,
+      "_source":["url", "title", "lang"],
+      "query": {
+        "bool": {
+          "should": [
+            {
+              "term": {"lang": {"value": "fr", "boost": 60}}
+            },
+            {
+              "multi_match" : {
+                "query":      "insi",
+                "type":       "best_fields",
+                "fields":     ["url^100", "title^200", "text^70"],
+                "boost": 3,
+                "operator": "OR",
+                "slop": 0,
+                "prefix_length": 0,
+                "max_expansions": 50,
+                "zero_terms_query": "NONE",
+                "auto_generate_synonyms_phrase_query": True,
+                "fuzzy_transpositions": True,
+                "tie_breaker": 1
+              }
+            },{
+            "regexp": {
+                "title": {
+                    "value": "insi.*",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 100
+                }
+              }
+            },{
+            "regexp": {
+                "title": {
+                    "value": ".*insi",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 100
+                }
+              }
+            },{
+            "regexp": {
+                "title": {
+                    "value": ".*insi.*",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 50
+                }
+              }
+            },{
+            "regexp": {
+                "text": {
+                    "value": "insi.*",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 30
+                }
+              }
+            },{
+            "regexp": {
+                "text": {
+                    "value": ".*insi",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 30
+                }
+              }
+            },{
+            "regexp": {
+                "text": {
+                    "value": ".*insi.*",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 10
+                }
+              }
+            },{
+            "regexp": {
+                "url": {
+                    "value": "insi.*",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 50
+                }
+              }
+            },{
+            "regexp": {
+                "url": {
+                    "value": ".*insi",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 50
+                }
+              }
+            },{
+            "regexp": {
+                "url": {
+                    "value": ".*insi.*",
+                    "max_determinized_states": 100,
+                    "rewrite": "constant_score",
+                    "flags": "ALL",
+                    "boost": 30
+                }
+              }
+            }
+          ],
+          "minimum_should_match": 1
+        }
+      }
+    }
+
+
+
+    GET _search/?index=documents
+{
+  "size": 50,
+          "_source":["type", "url", "title", "lang"],
+          "query": {
+            "function_score": {
+                "query": {
+                     "bool": {
+                      "should": [
+                        {
+                          "multi_match" : {
+                            "query":      "montpellier",
+                            "type":       "bool_prefix",
+                            "fields":     ["url^5", "title^30", "text^1"],
+                            "boost": 3,
+                            "operator": "OR",
+                            "slop": 0,
+                            "prefix_length": 0,
+                            "max_expansions": 50,
+                            "zero_terms_query": "NONE",
+                            "auto_generate_synonyms_phrase_query": true,
+                            "fuzzy_transpositions": true,
+                            "tie_breaker": 1
+                          }
+                        },
+                        {
+                          "term": {"lang": {"value": "fr", "boost": 5000}}
+                        }
+                      ]
+                    }
+                },
+                "script_score" : {
+                    "script" : {
+                      "lang": "painless",
+                     "source": """
+                                      short i = 0;
+                                      Pattern reg1 = /montpellier/im;
+                                      if (params._source.text == null)
+                                        return 0;
+                                      def m = reg1.matcher(params._source.text);
+                                      while (m.find()) {
+                                         ++i;
+                                      }
+                                      return i;"""
+                   }
+                }
+            }}
+           ,
+          "script_fields": {
+                 "match": {
+                   "script": {
+                     "lang": "painless",
+                     "source": """
+                                      short i = 0;
+                                      short limit = 20 ;
+                                      String[] x = new String[limit + 1];
+                                      if (params._source.text != null){
+                                        Pattern reg1 = /(\w{0,20}){0,1}\W{0,3}montpelli[eé]r\W{0,3}(\W{0,3}\w{0,20}){0,4}/im;
+                                        def m = reg1.matcher(params._source.text);
+                                        while (m.find() && i < limit) {
+                                           x[i] = m.group();
+                                           ++i;
+                                        }
+                                        while (m.find()) {
+                                           ++i;
+                                        }
+                                      }
+                                      x[limit] = Integer.toString(i);
+                                      return x;"""
+                   }
+                 }
+          }
+}

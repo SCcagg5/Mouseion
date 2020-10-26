@@ -1,6 +1,8 @@
 __pycache__/
 logs/
-Db/elastic/data/
+data/
 .env
 Proxy/conf/docker-*
 certs/
+Proxy/vhost/default
+Proxy/vhost/passwd

@@ -4,13 +4,13 @@ def setuproute(app, call):
     @app.route('/',                     ['OPTIONS', 'POST', 'GET'], lambda x = None: call([])                                            )
     @app.route('/login',    	        ['OPTIONS', 'POST'],        lambda x = None: call([getauth])                                     )
 
-    @app.route('/pdf/add/from_url',     ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, pdf_analyse])               )
-    @app.route('/pdf/add/from_b64',     ['OPTIONS', 'POST'],        lambda x = None: call([myauth, pdf_fromb64, pdf_analyse])            )
-    @app.route('/pdfs/add/from_url',    ['OPTIONS', 'POST'],        lambda x = None: call([myauth, pdf_mutlifile])                       )
+    @app.route('/pdf/url',              ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, pdf_analyse])               )
+    @app.route('/pdf/b64',              ['OPTIONS', 'POST'],        lambda x = None: call([myauth, pdf_fromb64, pdf_analyse])            )
+    @app.route('/pdfs/_url',            ['OPTIONS', 'POST'],        lambda x = None: call([myauth, pdf_mutlifile])                       )
 
-    @app.route('/img/add/from_url',     ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, img_analyse])               )
+    @app.route('/img/url',              ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, img_analyse])               )
 
-    @app.route('/file/add/from_url',    ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, file_analyse])              )
+    @app.route('/file/url',             ['OPTIONS', 'POST'],        lambda x = None: call([myauth, download, file_analyse])              )
 
 
     @app.route('/search',    	        ['OPTIONS', 'GET'],         lambda x = None: call([search])                                      )
